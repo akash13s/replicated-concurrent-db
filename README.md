@@ -92,7 +92,7 @@ class TransactionManager:
             and data item with the given value.
         dump(): Outputs the current state of all data managed by the system.
         end(t_id: int): Ends a specified transaction, committing or aborting based on conditions.
-        fail(site_id: int): Handles failure events for a specific site, updating the transaction state.
+        fail(site_id: int): Handles failure events for a specific site.
         recover(site_id: int): Recovers a specified site from a failure state.
         queryState(): Provides the current state of the transactions and sites for debugging purpose.
     """
