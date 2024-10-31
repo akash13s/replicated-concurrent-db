@@ -2,8 +2,8 @@
 
 ## Project Members
 
-- Rishav Roy (rr4577)
 - Akash Kumar Shrivastva (as18464)
+- Rishav Roy (rr4577)
 
 ## Project Description
 
@@ -118,7 +118,7 @@ class TransactionManager:
         """
         Processes a read request for a specific transaction and data item.
         It checks the data_broker for the list of site_id the data item is replicated at.
-        It will then goto the site_broker to check the status of replica sites and try to initiate a read using a specific SiteManager using Available Copies algorithm.
+        It will then go to the site_broker to check the status of replica sites and try to initiate a read using a specific SiteManager using Available Copies algorithm.
 
         Args:
             t_id (int): The transaction ID.
@@ -188,10 +188,11 @@ class TransactionManager:
     def queryState(self):
         """Provides the current state of the transactions and sites."""
         pass
+```
 
 ```python
 
-class SiteManager(ToUpdate):
+class SiteManager:
     """
     The SiteManager class manages data at an individual site. It oversees data access, 
     failure recovery, and logging operations. Each SiteManager instance is linked to a Site 
@@ -207,6 +208,7 @@ class SiteManager(ToUpdate):
         read(t_id: int, data_id: int): Reads the value of a specified data item for a transaction.
         write(t_id: int, data_id: int, value: int): Writes a new value to a specified data item 
             for a transaction.
+        persist(t_id: int): Save the values written by a committed Transaction to the site.
         dump(): Outputs the current state of data items at the site.
         fail(site_id: int): Simulates a failure for the site, affecting data availability.
         recover(site_id: int): Recovers the site from a failure state.
@@ -214,12 +216,20 @@ class SiteManager(ToUpdate):
     """
     
     def __init__(self):
-        """Initializes the SiteManager, setting up the site and data history for tracking data changes."""
+        """
+        Initializes the SiteManager class.
+        It initializes the site associated with the SiteManager (with the initial values of data)
+        It also initializes its data_history field which comprises of a map of data_id and their initial DataLog.
+        The DataLog for a data_item initially consists of a single list element with 
+        value = data_item's value, time = 0 and t_id = 0 (initial status)
+        """
         pass
     
-    def read(self, t_id: int, data_id: int):
+    def read(self, t_id: int, data_id: int): bool
         """
-        Reads the value of a specified data item for a transaction.
+        Reads the value of a specified data item for a transaction (If available according to the Available Copies Algorithm).
+        In case if the value is not available for reading, it will return a false.
+        If the value is available, it will print the expected output and return true.
 
         Args:
             t_id (int): The transaction ID.
@@ -230,6 +240,7 @@ class SiteManager(ToUpdate):
     def write(self, t_id: int, data_id: int, value: int):
         """
         Writes a new value to a specified data item for a transaction.
+        The write does not modify the site data directly. Instead, it adds the write information to the dataLog for that particular data item.
 
         Args:
             t_id (int): The transaction ID.
@@ -257,6 +268,16 @@ class SiteManager(ToUpdate):
 
         Args:
             site_id (int): The site ID.
+        """
+        pass
+
+    def persist(self, t_id: int):
+        """
+        Persists the write value from the dataLog to the Site.
+        It fetches all the items written by the transactions and saves them to the Site
+
+        Args:
+            t_id (int): The transaction ID
         """
         pass
     
