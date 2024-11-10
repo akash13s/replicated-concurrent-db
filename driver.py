@@ -13,7 +13,6 @@ class Driver:
             converting them into Instruction objects.
         __init__(): Initializes the Driver class and prepares it to accept and process instructions.
     """
-    
     def __init__(self):
         """Initializes the Driver class and prepares it to accept and process instructions."""
         pass
