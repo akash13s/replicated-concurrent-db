@@ -284,5 +284,4 @@ class SiteManager:
     def query_state(self):
         """Provides the current state and status of the site."""
         pass
-
 ```
