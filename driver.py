@@ -46,5 +46,6 @@ if __name__ == "__main__":
         "dump()"
     ]
 
+    # TODO: Send in the line number as well
     for command in commands:
         driver.process_line(command)

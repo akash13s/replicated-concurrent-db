@@ -9,7 +9,7 @@ class TransactionManager:
     def __init__(self):
         self.data_broker = DataBroker()
         self.site_broker = SiteBroker()
-        self.transaction_map: Dict[str, Transaction] = {}
+        self.transaction_map: Dict[str, Transaction] = {}   # t_id -> transaction information
         self.conflict_graph: Dict[str, Set[str]] = {}  # transaction_id -> set of conflicting transaction_ids
         self.site_managers: Dict[int, SiteManager] = {
             i: SiteManager(i) for i in range(1, 11)
@@ -18,7 +18,7 @@ class TransactionManager:
     def begin(self, t_id: str):
         self.transaction_map[t_id] = Transaction(
             id=t_id,
-            start_time=time.time(),
+            start_time=time.time(),     # TODO: change to line number (type: int)
             status=TransactionStatus.ACTIVE,
             writes=set(),
             reads=set()
@@ -37,6 +37,7 @@ class TransactionManager:
             return False
 
         # Get available sites for this data item
+        # TODO: If no sites are available, wait - how do we handle this??
         available_sites = self.site_broker.get_available_sites(data_id, self.data_broker)
         if not available_sites:
             print(f"No available sites for data item {data_id}")

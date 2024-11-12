@@ -6,11 +6,11 @@ class SiteManager:
     def __init__(self, site_id: int):
         self.site_id = site_id
 
-        # main data storage for committed values -> Dict[str: int]
+        # main data storage for committed values -> Dict[str: int] (data_id -> data_value)
         self.data_store = {}
 
         # temporary storage for uncommitted values -> Dict[str: list[DataLog]] (This will contain only the
-        # uncommitted writes)
+        # uncommitted writes) (data_id -> history of data_values)
         self.data_history = {}
 
         # initialising data items
@@ -21,6 +21,7 @@ class SiteManager:
             if i % 2 == 0 or (i % 10) + 1 == site_id:
                 self.data_store[data_id] = 10 * i  # Initial value
 
+    # TODO: How to read ?? Always read the Snapshot of DB at Ti start? OR Read the latest uncommited value?
     def read(self, t_id: str, data_id: str) -> Optional[int]:
         """Reads the most recent value for a data item, considering uncommitted writes by the transaction."""
         # check if the transaction has a temporary write in data_history

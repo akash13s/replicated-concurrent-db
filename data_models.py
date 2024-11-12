@@ -13,7 +13,7 @@ class TransactionStatus(Enum):
 @dataclass
 class DataLog:
     value: int
-    timestamp: float
+    timestamp: float    # TODO: change to int ?
     transaction_id: str
     committed: bool
 
@@ -21,14 +21,16 @@ class DataLog:
 @dataclass
 class Transaction:
     id: str
-    start_time: float
+    start_time: float   # TODO: change to int ??
     status: TransactionStatus
     writes: Set[str]  # Set of data_ids written by this transaction
     reads: Set[str]  # Set of data_ids read by this transaction
-
+#     TODO: add the following fields ?
+#   sites_accessed: List[site_id]
+#   commit_time: float or int
 
 @dataclass
 class SiteStatus:
     status: bool  # True if site is up, False if down
-    last_failure_time: float
+    last_failure_time: float    # TODO: change to int ?
     site_log: List[Tuple[float, bool]]
