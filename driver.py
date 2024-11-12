@@ -1,31 +1,50 @@
+from transaction_manager import TransactionManager
+
+
 class Driver:
-    """
-    The Driver class is responsible for managing the flow of instructions within the system. 
-    It takes a list of Instruction objects and processes them sequentially. The class provides 
-    methods to parse a file containing instructions and convert them into executable commands.
-
-    Attributes:
-        instructions (List[Instruction]): A list of Instruction objects to be processed.
-
-    Methods:
-        process(): Executes each instruction in the list.
-        parse_file(file: str): Reads and parses a file containing instructions, 
-            converting them into Instruction objects.
-        __init__(): Initializes the Driver class and prepares it to accept and process instructions.
-    """
     def __init__(self):
-        """Initializes the Driver class and prepares it to accept and process instructions."""
-        pass
-    
-    def process(self):
-        """Executes the  instruction in the list."""
-        pass
-    
-    def parse_file(self, file: str):
-        """
-        Reads and parses a file containing instructions, converting them into Instruction objects.
+        self.tm = TransactionManager()
 
-        Args:
-            file (str): The path to the file containing instructions.
-        """
-        pass
+    def process_line(self, line: str):
+        parts = line.strip().split('(')
+        if len(parts) < 2:
+            return
+
+        command = parts[0].strip()
+        args = parts[1].rstrip(')').split(',')
+        args = [arg.strip() for arg in args]
+
+        if command == 'begin':
+            self.tm.begin(args[0])
+        elif command == 'R':
+            self.tm.read(args[0], args[1])
+        elif command == 'W':
+            self.tm.write(args[0], args[1], int(args[2]))
+        elif command == 'end':
+            self.tm.end(args[0])
+        elif command == 'fail':
+            self.tm.fail(int(args[0]))
+        elif command == 'recover':
+            self.tm.recover(int(args[0]))
+        elif command == 'dump':
+            self.tm.dump()
+
+
+if __name__ == "__main__":
+    driver = Driver()
+    commands = [
+        "begin(T1)",
+        "begin(T2)",
+        "R(T1,x3)",
+        "fail(2)",
+        "W(T2,x8,88)",
+        "R(T2,x3)",
+        "W(T1,x5,91)",
+        "end(T2)",
+        "recover(2)",
+        "end(T1)",
+        "dump()"
+    ]
+
+    for command in commands:
+        driver.process_line(command)
