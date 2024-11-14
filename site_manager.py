@@ -65,8 +65,20 @@ class SiteManager:
         print(f"Transaction {t_id} writes {value} to {data_id} at site {self.site_id}")
         return True
 
-    def persist(self, t_id: str):
-        pass
+    def persist(self, t_id: str, timestamp: int):
+        for data_id in self.data_history:
+            valid_logs = [log for log in reversed(self.data_history[data_id]) if log.transaction_id == t_id]
+            if not valid_logs:
+                continue
+            last_log = valid_logs[0]
+            committed_value = last_log.value
+            self.data_store[data_id] = committed_value
+            self.data_history[data_id].append(DataLog(
+                value=committed_value,
+                timestamp=timestamp,
+                transaction_id=t_id,
+                committed=True
+            ))
 
     def dump(self):
         status = f"site {self.site_id} - "

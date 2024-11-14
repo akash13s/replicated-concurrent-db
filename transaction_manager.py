@@ -82,8 +82,57 @@ class TransactionManager:
 
         return success
 
-    def end(self, t_id: str):
-        pass
+    def end(self, t_id: str, timestamp: int):
+        if self._is_invalid(t_id):
+            return
+
+        transaction = self.transaction_map[t_id]
+
+        # TODO: Incorrect implementation of Serializable Snapshot Isolation
+        # Check for conflicts using Serializable Snapshot Isolation
+        should_abort = False
+        for other_t_id, other_transaction in self.transaction_map.items():
+            if other_t_id != t_id and other_transaction.status == TransactionStatus.COMMITTED:
+                # Check for write-write conflicts
+                if transaction.writes & other_transaction.writes:
+                    should_abort = True
+                    break
+
+        # Check for cycle in conflict graph
+        if not should_abort:
+            # Simple cycle detection (this could be more sophisticated)
+            visited = set()
+
+            def has_cycle(node: int, path: Set[int]) -> bool:
+                if node in path:
+                    return True
+                if node in visited:
+                    return False
+
+                visited.add(node)
+                path.add(node)
+
+                for next_node in self.conflict_graph[node]:
+                    if has_cycle(next_node, path):
+                        return True
+
+                path.remove(node)
+                return False
+
+            should_abort = has_cycle(t_id, set())
+
+        if should_abort:
+            transaction.status = TransactionStatus.ABORTED
+            print(f"Transaction {t_id} aborts")
+        else:
+            transaction.status = TransactionStatus.COMMITTED
+            # Persist changes to all sites
+            for site_id in self.site_managers.keys():
+                if self.site_broker.is_site_up(site_id):
+                    self.site_managers[site_id].persist(t_id, timestamp)
+            print(f"Transaction {t_id} commits")
+
+        # TODO: After the transaction commits, we should remove it from the adjacency list
 
     def fail(self, site_id: int, timestamp: int):
         self.site_broker.site_status[site_id].status = False
@@ -96,10 +145,11 @@ class TransactionManager:
         self.site_broker.site_status[site_id].status = True
         self.site_broker.site_status[site_id].site_log.append((True, timestamp))
         self.site_managers[site_id].recover()
+        # TODO: check which pending reads can be completed
         print(f"Site {site_id} recovers")
 
     def dump(self):
-        for site_id in range(1, 11):
+        for site_id in self.site_managers.keys():
             if self.site_broker.is_site_up(site_id):
                 self.site_managers[site_id].dump()
 

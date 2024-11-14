@@ -10,23 +10,23 @@ class Driver:
         if len(parts) < 2:
             return
 
-        command = parts[0].strip()
+        instruction = parts[0].strip()
         args = parts[1].rstrip(')').split(',')
         args = [arg.strip() for arg in args]
 
-        if command == 'begin':
+        if instruction == 'begin':
             self.tm.begin(args[0], timestamp)
-        elif command == 'R':
+        elif instruction == 'R':
             self.tm.read(args[0], args[1])
-        elif command == 'W':
+        elif instruction == 'W':
             self.tm.write(args[0], args[1], int(args[2]), timestamp)
-        elif command == 'end':
-            self.tm.end(args[0])
-        elif command == 'fail':
+        elif instruction == 'end':
+            self.tm.end(args[0], timestamp)
+        elif instruction == 'fail':
             self.tm.fail(int(args[0]), timestamp)
-        elif command == 'recover':
+        elif instruction == 'recover':
             self.tm.recover(int(args[0]), timestamp)
-        elif command == 'dump':
+        elif instruction == 'dump':
             self.tm.dump()
 
 
