@@ -5,7 +5,7 @@ class Driver:
     def __init__(self):
         self.tm = TransactionManager()
 
-    def process_line(self, line: str):
+    def process_line(self, line: str, timestamp: int):
         parts = line.strip().split('(')
         if len(parts) < 2:
             return
@@ -15,11 +15,11 @@ class Driver:
         args = [arg.strip() for arg in args]
 
         if command == 'begin':
-            self.tm.begin(args[0])
+            self.tm.begin(args[0], timestamp)
         elif command == 'R':
             self.tm.read(args[0], args[1])
         elif command == 'W':
-            self.tm.write(args[0], args[1], int(args[2]))
+            self.tm.write(args[0], args[1], int(args[2]), timestamp)
         elif command == 'end':
             self.tm.end(args[0])
         elif command == 'fail':
@@ -46,6 +46,5 @@ if __name__ == "__main__":
         "dump()"
     ]
 
-    # TODO: Send in the line number as well
-    for command in commands:
-        driver.process_line(command)
+    for idx, command in enumerate(commands):
+        driver.process_line(command, idx + 1)

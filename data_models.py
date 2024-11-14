@@ -1,6 +1,6 @@
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Set, Tuple
 from enum import Enum
+from typing import List, Set, Tuple
 
 
 # Data Models
@@ -13,7 +13,7 @@ class TransactionStatus(Enum):
 @dataclass
 class DataLog:
     value: int
-    timestamp: float    # TODO: change to int ?
+    timestamp: int
     transaction_id: str
     committed: bool
 
@@ -21,16 +21,18 @@ class DataLog:
 @dataclass
 class Transaction:
     id: str
-    start_time: float   # TODO: change to int ??
+    start_time: int
     status: TransactionStatus
     writes: Set[str]  # Set of data_ids written by this transaction
     reads: Set[str]  # Set of data_ids read by this transaction
-#     TODO: add the following fields ?
+
+
+#   TODO: should we add the following fields ?
 #   sites_accessed: List[site_id]
 #   commit_time: float or int
 
 @dataclass
 class SiteStatus:
     status: bool  # True if site is up, False if down
-    last_failure_time: float    # TODO: change to int ?
+    last_failure_time: float  # TODO: change to int ?
     site_log: List[Tuple[float, bool]]

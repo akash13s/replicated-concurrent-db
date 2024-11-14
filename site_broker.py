@@ -1,6 +1,7 @@
-from typing import Dict, List
-from data_models import SiteStatus
+from typing import List
+
 from data_broker import DataBroker
+from data_models import SiteStatus
 
 
 class SiteBroker:
