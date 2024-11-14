@@ -69,12 +69,21 @@ class SiteManager:
         pass
 
     def dump(self):
-        for data_id, value in sorted(self.data_store.items()):
-            print(f"{data_id}: {value}")
-        print('*' * 15)
+        status = f"site {self.site_id} - "
+        ordered_data = sorted(self.data_store.keys(), key=self._extract_num)
+        data_status = [f"{data_id}: {self.data_store[data_id]}" for data_id in ordered_data]
+        status += ", ".join(data_status)
+        print(status)
 
+    # TODO: remove fail() from Site Manager ?
+    # Does not perform any action so far
     def fail(self):
-        pass
+        return
 
+    # TODO: remove recover() from Site Manager ?
+    # Does not perform any action so far
     def recover(self):
-        pass
+        return
+
+    def _extract_num(self, key: str) -> int:
+        return int(key[1:])

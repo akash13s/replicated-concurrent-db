@@ -23,9 +23,9 @@ class Driver:
         elif command == 'end':
             self.tm.end(args[0])
         elif command == 'fail':
-            self.tm.fail(int(args[0]))
+            self.tm.fail(int(args[0]), timestamp)
         elif command == 'recover':
-            self.tm.recover(int(args[0]))
+            self.tm.recover(int(args[0]), timestamp)
         elif command == 'dump':
             self.tm.dump()
 

@@ -34,5 +34,5 @@ class Transaction:
 @dataclass
 class SiteStatus:
     status: bool  # True if site is up, False if down
-    last_failure_time: float  # TODO: change to int ?
+    last_failure_time: int
     site_log: List[Tuple[float, bool]]

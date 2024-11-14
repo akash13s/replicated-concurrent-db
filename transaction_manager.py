@@ -85,16 +85,22 @@ class TransactionManager:
     def end(self, t_id: str):
         pass
 
-    def fail(self, site_id: int):
-        pass
+    def fail(self, site_id: int, timestamp: int):
+        self.site_broker.site_status[site_id].status = False
+        self.site_broker.site_status[site_id].last_failure_time = timestamp
+        self.site_broker.site_status[site_id].site_log.append((False, timestamp))
+        self.site_managers[site_id].fail()
+        print(f"Site {site_id} fails")
 
-    def recover(self, site_id: int):
-        pass
+    def recover(self, site_id: int, timestamp: int):
+        self.site_broker.site_status[site_id].status = True
+        self.site_broker.site_status[site_id].site_log.append((True, timestamp))
+        self.site_managers[site_id].recover()
+        print(f"Site {site_id} recovers")
 
     def dump(self):
         for site_id in range(1, 11):
             if self.site_broker.is_site_up(site_id):
-                print(f"Site {site_id}:")
                 self.site_managers[site_id].dump()
 
     def _is_invalid(self, t_id: str):

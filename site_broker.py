@@ -6,7 +6,9 @@ from data_models import SiteStatus
 
 class SiteBroker:
     def __init__(self):
-        self.site_status = {}  # Dict[int, SiteStatus]
+        # Stores the latest status of each site -> Dict[int, SiteStatus]
+        # Format: site_id -> SiteStatus
+        self.site_status = {}
 
         # Initialize all sites as up
         for site_id in range(1, 11):
