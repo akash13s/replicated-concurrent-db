@@ -1,9 +1,11 @@
 from transaction_manager import TransactionManager
+from site_manager import SiteManager
 
 
 class Driver:
     def __init__(self):
-        self.tm = TransactionManager()
+        self.sm = SiteManager()
+        self.tm = TransactionManager(self.sm)
 
     def process_line(self, line: str, timestamp: int):
         parts = line.strip().split('(')
@@ -23,11 +25,11 @@ class Driver:
         elif instruction == 'end':
             self.tm.end(args[0], timestamp)
         elif instruction == 'fail':
-            self.tm.fail(int(args[0]), timestamp)
+            self.sm.fail(int(args[0]), timestamp)
         elif instruction == 'recover':
-            self.tm.recover(int(args[0]), timestamp)
+            self.sm.recover(int(args[0]), timestamp)
         elif instruction == 'dump':
-            self.tm.dump()
+            self.sm.dump()
 
 
 if __name__ == "__main__":
