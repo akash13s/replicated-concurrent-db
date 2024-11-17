@@ -98,16 +98,23 @@ class TransactionManager:
 
         sites_accessed = transaction.sites_accessed
 
+        print(f"Sites accessed by Transaction {t_id}: {sites_accessed}")
+
         failure = False
+        site_id_failed = None
+
         for site_id, operation, ts in sites_accessed:
             if self.site_manager.get_last_fail_time(site_id) > ts:
                 failure = True
+                site_id_failed = site_id
                 break
 
         # if there is a site that failed and if the transaction is not read-only, then ABORT
         if failure and not transaction.is_read_only:
-            print(f"Aborting transaction {t_id} due to site failure")
+            print(f"Aborting Transaction {t_id} as site {site_id_failed} failed since it first wrote to it")
             return False
+
+        print(f"All sites accessed by Transaction {t_id} have been up since the first time it accessed them")
 
         return True
 
@@ -131,11 +138,11 @@ class TransactionManager:
 
         transaction = self.transaction_map[t_id]
 
-        valid = True
-
         # check all data items that this transaction T wants to write for every data item x, check the possible sites
         # get the data history of every site for data item x and see if there is some transaction which wrote to x
         # after T began
+
+        print(f"Data items that Transaction {t_id} wants to commit: {transaction.writes}")
 
         for data_id in transaction.writes:
 
@@ -146,10 +153,12 @@ class TransactionManager:
 
                 for log in logs:
                     if log.committed and log.transaction_id != t_id and log.timestamp > transaction.start_time:
-                        valid = False
-                        break
+                        print(f"Aborting Transaction {t_id} due to first committer rule")
+                        return False
 
-        return valid
+        print(f"Transaction {t_id} passes the 1st committer check")
+
+        return True
 
     def end(self, t_id: str, timestamp: int):
         if self._is_invalid(t_id):
