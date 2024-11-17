@@ -1,20 +1,14 @@
 from typing import Dict
 
-from data_broker import DataBroker
 from data_models import *
-from site_broker import SiteBroker
 from site_manager import SiteManager
 
 
 class TransactionManager:
-    def __init__(self):
-        self.data_broker = DataBroker()
-        self.site_broker = SiteBroker()
+    def __init__(self, site_manager: SiteManager):
+        self.site_manager = site_manager
         self.transaction_map: Dict[str, Transaction] = {}  # t_id -> transaction information
         self.conflict_graph: Dict[str, Set[str]] = {}  # transaction_id -> set of conflicting transaction_ids
-        self.site_managers: Dict[int, SiteManager] = {
-            i: SiteManager(i) for i in range(1, 11)
-        }
 
     def begin(self, t_id: str, timestamp: int):
         self.transaction_map[t_id] = Transaction(
@@ -22,17 +16,19 @@ class TransactionManager:
             start_time=timestamp,
             status=TransactionStatus.ACTIVE,
             writes=set(),
-            reads=set()
+            reads=set(),
+            sites_accessed=[],
+            is_read_only=True
         )
         self.conflict_graph[t_id] = set()
         print(f"Transaction {t_id} begins")
 
-    def read(self, t_id: str, data_id: str) -> bool:
+    def read(self, t_id: str, data_id: str, timestamp: int) -> bool:
         if self._is_invalid(t_id):
             return False
 
         # Get available sites for this data item
-        available_sites = self.site_broker.get_available_sites(data_id, self.data_broker)
+        available_sites = self.site_manager.get_available_sites(data_id)
 
         # TODO: If no sites are available, wait - how do we handle this??
         # TODO: Maybe have a list of pending reads that gets scanned each time a site recovers
@@ -44,11 +40,12 @@ class TransactionManager:
 
         # Try to read from any available site
         for site_id in available_sites:
-            value = self.site_managers[site_id].read(t_id, data_id)
+            value = self.site_manager.get_site(site_id).read(t_id, data_id)
             # TODO: should we update transaction reads regardless of available sites?
             # In that case, we need to move the next few lines of code to the top of self.read()
             if value is not None:
                 transaction.reads.add(data_id)
+                transaction.sites_accessed.append((site_id, Operations.READ, timestamp))
                 return True
 
         return False
@@ -57,8 +54,14 @@ class TransactionManager:
         if self._is_invalid(t_id):
             return False
 
+        transaction = self.transaction_map[t_id]
+
+        # Mark the transaction as a read-write transaction. Useful for Available Copies Algorithm.
+        if transaction.is_read_only:
+            transaction.is_read_only = False
+
         # Get available sites for this data item
-        available_sites = self.site_broker.get_available_sites(data_id, self.data_broker)
+        available_sites = self.site_manager.get_available_sites(data_id)
 
         # TODO: what should be done if no sites are available for write ?
         if not available_sites:
@@ -68,8 +71,10 @@ class TransactionManager:
         # Write to all available sites
         success = False
         for site_id in available_sites:
-            if self.site_managers[site_id].write(t_id, data_id, value, timestamp):
+            site = self.site_manager.get_site(site_id)
+            if site.write(t_id, data_id, value, timestamp):
                 success = True
+                transaction.sites_accessed.append((site_id, Operations.WRITE, timestamp))
 
         if success:
             transaction = self.transaction_map[t_id]
@@ -82,76 +87,96 @@ class TransactionManager:
 
         return success
 
+    def validate_site_failure(self, t_id: str, timestamp: int):
+        """
+        AVAILABLE COPIES: At Commit time: For a two phase locked transaction T, T tests whether all servers
+        that T accessed (read or write) have been up since the first time T accessed them. If not, T aborts.
+        (Note: Read-only transactions using multiversion read consistency need not abort in this case.)
+        """
+
+        transaction = self.transaction_map[t_id]
+
+        sites_accessed = transaction.sites_accessed
+
+        print(f"Sites accessed by Transaction {t_id}: {sites_accessed}")
+
+        failure = False
+        site_id_failed = None
+
+        for site_id, operation, ts in sites_accessed:
+            if self.site_manager.get_last_fail_time(site_id) > ts:
+                failure = True
+                site_id_failed = site_id
+                break
+
+        # if there is a site that failed and if the transaction is not read-only, then ABORT
+        if failure and not transaction.is_read_only:
+            print(f"Aborting Transaction {t_id} as site {site_id_failed} failed since it first wrote to it")
+            return False
+
+        print(f"All sites accessed by Transaction {t_id} have been up since the first time it accessed them")
+
+        return True
+
+    def validate_first_committer_rule(self, t_id: str, timestamp: int):
+        """
+        :param t_id:
+        :param timestamp:
+        :return: True if transaction can proceed ahead and False otherwise
+
+        Check for the first committer rule using Snapshot Isolation algorithm
+
+        Writes follow the first committer wins rule:
+        Ti will successfully commit only if no other concurrent transaction
+        Tk has already committed writes to data items where Ti has written
+        versions that it intends to commit.
+
+        That is, if (a) Ti starts at time start(Ti) and tries to commit at end(Ti);
+        (b) Tk commits between start(Ti) and  end(Ti);
+        and (c) Tk writes some data item x that Ti wants to write, then Ti should abort.
+        """
+
+        transaction = self.transaction_map[t_id]
+
+        # check all data items that this transaction T wants to write for every data item x, check the possible sites
+        # get the data history of every site for data item x and see if there is some transaction which wrote to x
+        # after T began
+
+        print(f"Data items that Transaction {t_id} wants to commit: {transaction.writes}")
+
+        for data_id in transaction.writes:
+
+            site_ids = self.site_manager.get_available_sites(data_id)
+
+            for site_id in site_ids:
+                logs = self.site_manager.get_all_logs_from_site_for_data_id(site_id, data_id)
+
+                for log in logs:
+                    if log.committed and log.transaction_id != t_id and log.timestamp > transaction.start_time:
+                        print(f"Aborting Transaction {t_id} due to first committer rule")
+                        return False
+
+        print(f"Transaction {t_id} passes the 1st committer check")
+
+        return True
+
     def end(self, t_id: str, timestamp: int):
         if self._is_invalid(t_id):
             return
 
-        transaction = self.transaction_map[t_id]
+        # Check for ABORT using Available Copies
+        if not self.validate_site_failure(t_id, timestamp):
+            return
 
-        # TODO: Incorrect implementation of Serializable Snapshot Isolation
-        # Check for conflicts using Serializable Snapshot Isolation
-        should_abort = False
-        for other_t_id, other_transaction in self.transaction_map.items():
-            if other_t_id != t_id and other_transaction.status == TransactionStatus.COMMITTED:
-                # Check for write-write conflicts
-                if transaction.writes & other_transaction.writes:
-                    should_abort = True
-                    break
+        # First committer rule using Snapshot Isolation
+        if not self.validate_first_committer_rule(t_id, timestamp):
+            return
 
-        # Check for cycle in conflict graph
-        if not should_abort:
-            # Simple cycle detection (this could be more sophisticated)
-            visited = set()
+        # TODO: After the transaction commits, we should remove it from the adjacency list -> will come to this later
 
-            def has_cycle(node: int, path: Set[int]) -> bool:
-                if node in path:
-                    return True
-                if node in visited:
-                    return False
-
-                visited.add(node)
-                path.add(node)
-
-                for next_node in self.conflict_graph[node]:
-                    if has_cycle(next_node, path):
-                        return True
-
-                path.remove(node)
-                return False
-
-            should_abort = has_cycle(t_id, set())
-
-        if should_abort:
-            transaction.status = TransactionStatus.ABORTED
-            print(f"Transaction {t_id} aborts")
-        else:
-            transaction.status = TransactionStatus.COMMITTED
-            # Persist changes to all sites
-            for site_id in self.site_managers.keys():
-                if self.site_broker.is_site_up(site_id):
-                    self.site_managers[site_id].persist(t_id, timestamp)
-            print(f"Transaction {t_id} commits")
-
-        # TODO: After the transaction commits, we should remove it from the adjacency list
-
-    def fail(self, site_id: int, timestamp: int):
-        self.site_broker.site_status[site_id].status = False
-        self.site_broker.site_status[site_id].last_failure_time = timestamp
-        self.site_broker.site_status[site_id].site_log.append((False, timestamp))
-        self.site_managers[site_id].fail()
-        print(f"Site {site_id} fails")
-
-    def recover(self, site_id: int, timestamp: int):
-        self.site_broker.site_status[site_id].status = True
-        self.site_broker.site_status[site_id].site_log.append((True, timestamp))
-        self.site_managers[site_id].recover()
-        # TODO: check which pending reads can be completed
-        print(f"Site {site_id} recovers")
-
-    def dump(self):
-        for site_id in self.site_managers.keys():
-            if self.site_broker.is_site_up(site_id):
-                self.site_managers[site_id].dump()
+        # Commit after above checks
+        self.site_manager.commit(t_id, timestamp)
+        print(f"Transaction {t_id} commits")
 
     def _is_invalid(self, t_id: str):
         if t_id not in self.transaction_map:

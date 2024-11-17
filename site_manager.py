@@ -1,101 +1,81 @@
-from typing import Optional
+from typing import Dict, List, Optional, Set
 
-from data_models import DataLog
+from data_models import SiteStatus, DataLog
+from Site import Site
 
 
 class SiteManager:
+    def __init__(self):
+        # map of sites
+        self.sites: Dict[int, Site] = {
+            i: Site(i) for i in range(1, 11)
+        }
 
-    def __init__(self, site_id: int):
+        # Stores the latest status of each site -> Dict[int, SiteStatus]
+        # Format: site_id -> SiteStatus
+        self.site_status = {}
 
-        self.site_id = site_id
+        # Initialize all sites as up
+        for site_id in range(1, 11):
+            self.site_status[site_id] = SiteStatus(
+                status=True,
+                last_failure_time=-100,
+                site_log=[(True, 0)]
+            )
 
-        # main data storage for the latest committed values -> Dict[str: int]
-        # Format: data_id -> data_value
-        self.data_store = {}
+        # map of data locations: essentially it also knows where every data item is stored
+        self.data_locations = {}  # Dict[str, List[int]] mapping data_id to list of site_ids
 
-        # temporary storage for any write instruction -> Dict[str: list[DataLog]]
-        # Format: data_id -> history of data_values
-        self.data_history = {}
-
-        # initialize data items with their corresponding initial values
-        # even indexed items are replicated at all sites
-        # odd indexed items are replicated only at site (i % 10) + 1
+        # Initialize data locations based on replication rules
         for i in range(1, 21):
             data_id = f"x{i}"
-            if i % 2 == 0 or (i % 10) + 1 == site_id:
-                self.data_store[data_id] = 10 * i
-                self.data_history[data_id] = []
+            if i % 2 == 0:  # Even items are replicated at all sites
+                self.data_locations[data_id] = list(range(1, 11))
+            else:  # Odd items are only at one site
+                self.data_locations[data_id] = [(i % 10) + 1]
 
-    # TODO: How to read ?? Always read the Snapshot of DB at Ti start?
-    # OR Read the latest uncommited value?
-    def read(self, t_id: str, data_id: str) -> Optional[int]:
-        """Reads the most recent value for a data item, considering uncommitted writes by the transaction."""
+    def get_available_sites(self, data_id: str) -> List[int]:
+        possible_sites = self.data_locations.get(data_id, [])
+        return [site_id for site_id in possible_sites if self.is_site_up(site_id)]
 
-        # check if the transaction has an entry in the data_history
-        # return the most recent uncommitted value written by this transaction
-        if data_id in self.data_history:
-            uncommitted_writes = [entry for entry in self.data_history[data_id] if entry.transaction_id == t_id]
-            if uncommitted_writes:
-                value = uncommitted_writes[-1].value
-                print(f"Transaction {t_id} reads {value} from uncommitted {data_id} at site {self.site_id}")
-                return value
+    def get_all_site_ids(self, data_id: str) -> List[int]:
+        return self.data_locations.get(data_id, [])
 
-        # if no uncommitted value for this transaction is found,
-        # Data is read from the committed data_store
-        if data_id in self.data_store:
-            value = self.data_store[data_id]
-            print(f"Transaction {t_id} reads {value} from committed {data_id} at site {self.site_id}")
-            return value
+    def get_site(self, site_id: int):
+        return self.sites.get(site_id)
 
-        print(f"Data {data_id} not found at site {self.site_id}")
-        return None
+    def get_all_logs_from_site_for_data_id(self, site_id: int, data_id: str) -> list[DataLog]:
+        site = self.sites.get(site_id)
+        return site.data_history.get(data_id, [])
 
-    def write(self, t_id: str, data_id: str, value: int, timestamp: int) -> bool:
-        if data_id not in self.data_store:
-            return False
+    def is_site_up(self, site_id: int) -> bool:
+        return self.site_status[site_id].status
 
-        self.data_history[data_id].append(DataLog(
-            value=value,
-            timestamp=timestamp,
-            transaction_id=t_id,
-            committed=False
-        ))
+    def get_last_fail_time(self, site_id: int):
+        return self.site_status[site_id].last_failure_time
 
-        # TODO: remove print statement
-        print(f"Transaction {t_id} writes {value} to {data_id} at site {self.site_id}")
-        return True
+    def commit(self, t_id: str, timestamp: int):
+        for site_id in self.sites.keys():
+            if self.is_site_up(site_id):
+                site = self.get_site(site_id)
+                site.persist(t_id, timestamp)
 
-    def persist(self, t_id: str, timestamp: int):
-        for data_id in self.data_history:
-            valid_logs = [log for log in reversed(self.data_history[data_id]) if log.transaction_id == t_id]
-            if not valid_logs:
-                continue
-            last_log = valid_logs[0]
-            committed_value = last_log.value
-            self.data_store[data_id] = committed_value
-            self.data_history[data_id].append(DataLog(
-                value=committed_value,
-                timestamp=timestamp,
-                transaction_id=t_id,
-                committed=True
-            ))
+    def fail(self, site_id: int, timestamp: int):
+        self.site_status[site_id].status = False
+
+        self.site_status[site_id].last_failure_time = timestamp
+        self.site_status[site_id].site_log.append((False, timestamp))
+        # self.site_managers[site_id].fail()
+        print(f"Site {site_id} fails")
+
+    def recover(self, site_id: int, timestamp: int):
+        self.site_status[site_id].status = True
+        self.site_status[site_id].site_log.append((True, timestamp))
+        # self.site_managers[site_id].recover()
+        # TODO: check which pending reads can be completed
+        print(f"Site {site_id} recovers")
 
     def dump(self):
-        status = f"site {self.site_id} - "
-        ordered_data = sorted(self.data_store.keys(), key=self._extract_num)
-        data_status = [f"{data_id}: {self.data_store[data_id]}" for data_id in ordered_data]
-        status += ", ".join(data_status)
-        print(status)
-
-    # TODO: remove fail() from Site Manager ?
-    # Does not perform any action so far
-    def fail(self):
-        return
-
-    # TODO: remove recover() from Site Manager ?
-    # Does not perform any action so far
-    def recover(self):
-        return
-
-    def _extract_num(self, key: str) -> int:
-        return int(key[1:])
+        for site_id in range(1, 11):
+            if self.is_site_up(site_id):
+                self.get_site(site_id).dump()

@@ -1,9 +1,11 @@
 from transaction_manager import TransactionManager
+from site_manager import SiteManager
 
 
 class Driver:
     def __init__(self):
-        self.tm = TransactionManager()
+        self.sm = SiteManager()
+        self.tm = TransactionManager(self.sm)
 
     def process_line(self, line: str, timestamp: int):
         parts = line.strip().split('(')
@@ -17,34 +19,34 @@ class Driver:
         if instruction == 'begin':
             self.tm.begin(args[0], timestamp)
         elif instruction == 'R':
-            self.tm.read(args[0], args[1])
+            self.tm.read(args[0], args[1], timestamp)
         elif instruction == 'W':
             self.tm.write(args[0], args[1], int(args[2]), timestamp)
         elif instruction == 'end':
             self.tm.end(args[0], timestamp)
         elif instruction == 'fail':
-            self.tm.fail(int(args[0]), timestamp)
+            self.sm.fail(int(args[0]), timestamp)
         elif instruction == 'recover':
-            self.tm.recover(int(args[0]), timestamp)
+            self.sm.recover(int(args[0]), timestamp)
         elif instruction == 'dump':
-            self.tm.dump()
+            self.sm.dump()
+
+
+def read_file(file):
+    commands_list = []
+    with open(file, 'r') as file:
+        for line in file:
+            stripped_line = line.strip()
+            if not stripped_line.startswith("//") and stripped_line:
+                commands_list.append(stripped_line)
+    return commands_list
 
 
 if __name__ == "__main__":
     driver = Driver()
-    commands = [
-        "begin(T1)",
-        "begin(T2)",
-        "R(T1,x3)",
-        "fail(2)",
-        "W(T2,x8,88)",
-        "R(T2,x3)",
-        "W(T1,x5,91)",
-        "end(T2)",
-        "recover(2)",
-        "end(T1)",
-        "dump()"
-    ]
+
+    file_path = "input/input4"
+    commands = read_file(file_path)
 
     for idx, command in enumerate(commands):
         driver.process_line(command, idx + 1)
