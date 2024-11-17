@@ -54,6 +54,12 @@ class SiteManager:
     def get_last_fail_time(self, site_id: int):
         return self.site_status[site_id].last_failure_time
 
+    def commit(self, t_id: str, timestamp: int):
+        for site_id in self.sites.keys():
+            if self.is_site_up(site_id):
+                site = self.get_site(site_id)
+                site.persist(t_id, timestamp)
+
     def fail(self, site_id: int, timestamp: int):
         self.site_status[site_id].status = False
 
@@ -73,4 +79,3 @@ class SiteManager:
         for site_id in range(1, 11):
             if self.is_site_up(site_id):
                 self.get_site(site_id).dump()
-

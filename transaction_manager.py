@@ -163,7 +163,11 @@ class TransactionManager:
         if not self.validate_first_committer_rule(t_id, timestamp):
             return
 
-        # TODO: After the transaction commits, we should remove it from the adjacency list
+        # TODO: After the transaction commits, we should remove it from the adjacency list -> will come to this later
+
+        # Commit after above checks
+        self.site_manager.commit(t_id, timestamp)
+        print(f"Transaction {t_id} commits")
 
     def _is_invalid(self, t_id: str):
         if t_id not in self.transaction_map:

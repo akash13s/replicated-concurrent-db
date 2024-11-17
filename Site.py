@@ -71,10 +71,10 @@ class Site:
             if not valid_logs:
                 continue
             last_log = valid_logs[0]
-            committed_value = last_log.value
-            self.data_store[data_id] = committed_value
+            commit_value = last_log.value
+            self.data_store[data_id] = commit_value
             self.data_history[data_id].append(DataLog(
-                value=committed_value,
+                value=commit_value,
                 timestamp=timestamp,
                 transaction_id=t_id,
                 committed=True
