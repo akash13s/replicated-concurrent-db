@@ -87,15 +87,5 @@ class Site:
         status += ", ".join(data_status)
         print(status)
 
-    # TODO: remove fail() from Site Manager ?
-    # Does not perform any action so far
-    def fail(self):
-        return
-
-    # TODO: remove recover() from Site Manager ?
-    # Does not perform any action so far
-    def recover(self):
-        return
-
     def _extract_num(self, key: str) -> int:
         return int(key[1:])
