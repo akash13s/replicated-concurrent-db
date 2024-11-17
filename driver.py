@@ -19,7 +19,7 @@ class Driver:
         if instruction == 'begin':
             self.tm.begin(args[0], timestamp)
         elif instruction == 'R':
-            self.tm.read(args[0], args[1])
+            self.tm.read(args[0], args[1], timestamp)
         elif instruction == 'W':
             self.tm.write(args[0], args[1], int(args[2]), timestamp)
         elif instruction == 'end':

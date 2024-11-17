@@ -10,6 +10,11 @@ class TransactionStatus(Enum):
     ABORTED = "ABORTED"
 
 
+class Operations:
+    READ = "READ"
+    WRITE = "WRITE"
+
+
 @dataclass
 class DataLog:
     value: int
@@ -25,6 +30,9 @@ class Transaction:
     status: TransactionStatus
     writes: Set[str]  # Set of data_ids written by this transaction
     reads: Set[str]  # Set of data_ids read by this transaction
+    is_read_only: bool
+    sites_accessed: List[
+        Tuple[int, str, int]]  # List of sites accessed by this transaction (site_id, operation, timestamp)
 
 
 #   TODO: should we add the following fields ?

@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional, Set
 
-from data_models import SiteStatus
+from data_models import SiteStatus, DataLog
 from Site import Site
 
 
@@ -38,11 +38,21 @@ class SiteManager:
         possible_sites = self.data_locations.get(data_id, [])
         return [site_id for site_id in possible_sites if self.is_site_up(site_id)]
 
+    def get_all_site_ids(self, data_id: str) -> List[int]:
+        return self.data_locations.get(data_id, [])
+
     def get_site(self, site_id: int):
         return self.sites.get(site_id)
 
+    def get_all_logs_from_site_for_data_id(self, site_id: int, data_id: str) -> list[DataLog]:
+        site = self.sites.get(site_id)
+        return site.data_history.get(data_id, [])
+
     def is_site_up(self, site_id: int) -> bool:
         return self.site_status[site_id].status
+
+    def get_last_fail_time(self, site_id: int):
+        return self.site_status[site_id].last_failure_time
 
     def fail(self, site_id: int, timestamp: int):
         self.site_status[site_id].status = False
