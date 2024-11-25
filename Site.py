@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Any
 
 from data_models import DataLog
 
@@ -9,8 +9,8 @@ class Site:
 
         self.site_id = site_id
 
-        # main data storage for the latest committed values -> Dict[str: int]
-        # Format: data_id -> data_value
+        # main data storage for the committed values -> Dict[str: list[DataLog]]
+        # Format: data_id -> list[DataLog]
         self.data_store = {}
 
         # temporary storage for any write instruction -> Dict[str: list[DataLog]]
@@ -23,12 +23,27 @@ class Site:
         for i in range(1, 21):
             data_id = f"x{i}"
             if i % 2 == 0 or (i % 10) + 1 == site_id:
-                self.data_store[data_id] = 10 * i
+                self.data_store[data_id] = []
+                self.data_store[data_id].append(DataLog(
+                    value=10 * i,
+                    timestamp=-1,
+                    transaction_id="T_init",
+                    committed=True
+                ))
+
                 self.data_history[data_id] = []
+
+    def get_value_using_snapshot_isolation(self, data_id: str, timestamp: int) -> Any:
+        committed_writes = reversed(self.data_store[data_id])
+        for write in committed_writes:
+            if write.timestamp < timestamp:
+                return write.value
+
+        return None
 
     # TODO: How to read ?? Always read the Snapshot of DB at Ti start?
     # OR Read the latest uncommited value?
-    def read(self, t_id: str, data_id: str) -> Optional[int]:
+    def read(self, t_id: str, data_id: str, timestamp: int) -> Optional[int]:
         """Reads the most recent value for a data item, considering uncommitted writes by the transaction."""
 
         # check if the transaction has an entry in the data_history
@@ -43,7 +58,7 @@ class Site:
         # if no uncommitted value for this transaction is found,
         # Data is read from the committed data_store
         if data_id in self.data_store:
-            value = self.data_store[data_id]
+            value = self.get_value_using_snapshot_isolation(data_id, timestamp)
             print(f"Transaction {t_id} reads {value} from committed {data_id} at site {self.site_id}")
             return value
 
@@ -72,8 +87,15 @@ class Site:
                 continue
             last_log = valid_logs[0]
             commit_value = last_log.value
-            self.data_store[data_id] = commit_value
+
             self.data_history[data_id].append(DataLog(
+                value=commit_value,
+                timestamp=timestamp,
+                transaction_id=t_id,
+                committed=True
+            ))
+
+            self.data_store[data_id].append(DataLog(
                 value=commit_value,
                 timestamp=timestamp,
                 transaction_id=t_id,
@@ -83,7 +105,7 @@ class Site:
     def dump(self):
         status = f"site {self.site_id} - "
         ordered_data = sorted(self.data_store.keys(), key=self._extract_num)
-        data_status = [f"{data_id}: {self.data_store[data_id]}" for data_id in ordered_data]
+        data_status = [f"{data_id}: {self.data_store[data_id][-1].value}" for data_id in ordered_data]
         status += ", ".join(data_status)
         print(status)
 
