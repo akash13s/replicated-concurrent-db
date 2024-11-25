@@ -40,7 +40,7 @@ class TransactionManager:
 
         # Try to read from any available site
         for site_id in available_sites:
-            value = self.site_manager.get_site(site_id).read(t_id, data_id)
+            value = self.site_manager.get_site(site_id).read(t_id, data_id, transaction.start_time)
             # TODO: should we update transaction reads regardless of available sites?
             # In that case, we need to move the next few lines of code to the top of self.read()
             if value is not None:
