@@ -45,7 +45,7 @@ def read_file(file):
 if __name__ == "__main__":
     driver = Driver()
 
-    file_path = "input/input7"
+    file_path = "input/input15"
     commands = read_file(file_path)
 
     for idx, command in enumerate(commands):
