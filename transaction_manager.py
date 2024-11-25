@@ -7,8 +7,13 @@ from site_manager import SiteManager
 class TransactionManager:
     def __init__(self, site_manager: SiteManager):
         self.site_manager = site_manager
-        self.transaction_map: Dict[str, Transaction] = {}  # t_id -> transaction information
-        self.conflict_graph: Dict[str, Set[str]] = {}  # transaction_id -> set of conflicting transaction_ids
+
+        # storage to store transaction information
+        self.transaction_map: Dict[str, Transaction] = {}
+
+        # Serialization Graph to identify data dependencies
+        # transaction_id -> set of conflicting transaction_ids
+        self.conflict_graph: Dict[str, Set[str]] = {}
 
     def begin(self, t_id: str, timestamp: int):
         self.transaction_map[t_id] = Transaction(
@@ -23,9 +28,9 @@ class TransactionManager:
         self.conflict_graph[t_id] = set()
         print(f"Transaction {t_id} begins")
 
-    def read(self, t_id: str, data_id: str, timestamp: int) -> bool:
-        if self._is_invalid(t_id):
-            return False
+    def read(self, t_id: str, data_id: str, timestamp: int):
+        if self.is_invalid(t_id):
+            return
 
         # Get available sites for this data item
         available_sites = self.site_manager.get_available_sites(data_id)
@@ -33,8 +38,9 @@ class TransactionManager:
         # TODO: If no sites are available, wait - how do we handle this??
         # TODO: Maybe have a list of pending reads that gets scanned each time a site recovers
         if not available_sites:
+            # TODO: Remove print statement in final commit
             print(f"No available sites for data item {data_id}")
-            return False
+            return
 
         transaction = self.transaction_map[t_id]
 
@@ -46,17 +52,16 @@ class TransactionManager:
             if value is not None:
                 transaction.reads.add(data_id)
                 transaction.sites_accessed.append((site_id, Operations.READ, timestamp))
-                return True
+                return
 
-        return False
-
-    def write(self, t_id: str, data_id: str, value: int, timestamp: int) -> bool:
-        if self._is_invalid(t_id):
-            return False
+    def write(self, t_id: str, data_id: str, value: int, timestamp: int):
+        if self.is_invalid(t_id):
+            return
 
         transaction = self.transaction_map[t_id]
 
-        # Mark the transaction as a read-write transaction. Useful for Available Copies Algorithm.
+        # Mark the transaction as a read-write transaction.
+        # Useful for Available Copies Algorithm.
         if transaction.is_read_only:
             transaction.is_read_only = False
 
@@ -65,8 +70,9 @@ class TransactionManager:
 
         # TODO: what should be done if no sites are available for write ?
         if not available_sites:
+            # TODO: remove print statement in final commit
             print(f"No available sites for data item {data_id}")
-            return False
+            return
 
         # Write to all available sites
         success = False
@@ -81,23 +87,25 @@ class TransactionManager:
             transaction.writes.add(data_id)
             # Update conflict graph
             for other_t_id, other_transaction in self.transaction_map.items():
-                if other_t_id != t_id and other_transaction.status == TransactionStatus.ACTIVE:
-                    if data_id in other_transaction.reads:
-                        self.conflict_graph[t_id].add(other_t_id)
-
-        return success
+                if (
+                        other_t_id != t_id and
+                        other_transaction.status == TransactionStatus.ACTIVE and
+                        data_id in other_transaction.reads
+                ):
+                    self.conflict_graph[t_id].add(other_t_id)
 
     def validate_site_failure(self, t_id: str, timestamp: int):
         """
         AVAILABLE COPIES: At Commit time: For a two phase locked transaction T, T tests whether all servers
         that T accessed (read or write) have been up since the first time T accessed them. If not, T aborts.
-        (Note: Read-only transactions using multiversion read consistency need not abort in this case.)
+        (Note: Read-only transactions using multi-version read consistency need not abort in this case.)
         """
 
         transaction = self.transaction_map[t_id]
 
         sites_accessed = transaction.sites_accessed
 
+        # TODO: remove print statement in the final commit
         print(f"Sites accessed by Transaction {t_id}: {sites_accessed}")
 
         failure = False
@@ -142,6 +150,7 @@ class TransactionManager:
         # get the data history of every site for data item x and see if there is some transaction which wrote to x
         # after T began
 
+        # TODO: remove print statement in final commit
         print(f"Data items that Transaction {t_id} wants to commit: {transaction.writes}")
 
         for data_id in transaction.writes:
@@ -153,15 +162,17 @@ class TransactionManager:
 
                 for log in logs:
                     if log.committed and log.transaction_id != t_id and log.timestamp > transaction.start_time:
+                        # TODO: remove print statement in final commit
                         print(f"Aborting Transaction {t_id} due to first committer rule")
                         return False
 
+        # TODO: remove print statement in final commit
         print(f"Transaction {t_id} passes the 1st committer check")
 
         return True
 
     def end(self, t_id: str, timestamp: int):
-        if self._is_invalid(t_id):
+        if self.is_invalid(t_id):
             return
 
         # Check for ABORT using Available Copies
@@ -178,7 +189,7 @@ class TransactionManager:
         self.site_manager.commit(t_id, timestamp)
         print(f"Transaction {t_id} commits")
 
-    def _is_invalid(self, t_id: str):
+    def is_invalid(self, t_id: str):
         if t_id not in self.transaction_map:
             print(f"Error: Transaction {t_id} does not exist")
             return True

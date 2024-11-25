@@ -16,13 +16,15 @@ class Site:
         # temporary storage for any write instruction -> Dict[str: list[DataLog]]
         # Format: data_id -> history of data_values
         self.data_history = {}
+        self.initialize_site_data()
 
+    def initialize_site_data(self):
         # initialize data items with their corresponding initial values
         # even indexed items are replicated at all sites
         # odd indexed items are replicated only at site (i % 10) + 1
         for i in range(1, 21):
             data_id = f"x{i}"
-            if i % 2 == 0 or (i % 10) + 1 == site_id:
+            if i % 2 == 0 or (i % 10) + 1 == self.site_id:
                 self.data_store[data_id] = []
                 self.data_store[data_id].append(DataLog(
                     value=10 * i,
@@ -104,10 +106,10 @@ class Site:
 
     def dump(self):
         status = f"site {self.site_id} - "
-        ordered_data = sorted(self.data_store.keys(), key=self._extract_num)
+        ordered_data = sorted(self.data_store.keys(), key=self.extract_num)
         data_status = [f"{data_id}: {self.data_store[data_id][-1].value}" for data_id in ordered_data]
         status += ", ".join(data_status)
         print(status)
 
-    def _extract_num(self, key: str) -> int:
+    def extract_num(self, key: str) -> int:
         return int(key[1:])

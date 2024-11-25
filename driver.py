@@ -1,5 +1,7 @@
-from transaction_manager import TransactionManager
+import sys
+
 from site_manager import SiteManager
+from transaction_manager import TransactionManager
 
 
 class Driver:
@@ -43,10 +45,14 @@ def read_file(file):
 
 
 if __name__ == "__main__":
-    driver = Driver()
+    if len(sys.argv) < 2:
+        print("Usage: python driver.py <file>")
+        sys.exit(1)
 
-    file_path = "input/input15"
+    file_path = sys.argv[1]
     commands = read_file(file_path)
+
+    driver = Driver()
 
     for idx, command in enumerate(commands):
         driver.process_line(command, idx + 1)

@@ -1,7 +1,7 @@
-from typing import Dict, List, Optional, Set
+from typing import Dict, List
 
-from data_models import SiteStatus, DataLog
 from Site import Site
+from data_models import SiteStatus, DataLog
 
 
 class SiteManager:
@@ -65,14 +65,12 @@ class SiteManager:
 
         self.site_status[site_id].last_failure_time = timestamp
         self.site_status[site_id].site_log.append((False, timestamp))
-        # self.site_managers[site_id].fail()
         print(f"Site {site_id} fails")
 
     def recover(self, site_id: int, timestamp: int):
         self.site_status[site_id].status = True
         self.site_status[site_id].site_log.append((True, timestamp))
-        # self.site_managers[site_id].recover()
-        # TODO: check which pending reads can be completed
+        # TODO: check which pending reads and writes can be completed
         print(f"Site {site_id} recovers")
 
     def dump(self):
