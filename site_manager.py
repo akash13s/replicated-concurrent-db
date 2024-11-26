@@ -1,7 +1,7 @@
 from typing import Dict, List
 
 from Site import Site
-from data_models import SiteStatus, DataLog
+from data_models import SiteStatus, DataLog, Transaction
 
 
 class SiteManager:
@@ -44,9 +44,39 @@ class SiteManager:
     def get_site(self, site_id: int):
         return self.sites.get(site_id)
 
-    def get_all_logs_from_site_for_data_id(self, site_id: int, data_id: str) -> list[DataLog]:
+    def get_all_logs_from_site_for_data_id(self, site_id: int, data_id: str) -> List[DataLog]:
         site = self.sites.get(site_id)
         return site.data_history.get(data_id, [])
+
+    def get_previously_running_sites(self, data_id: str, transaction: Transaction) -> List[int]:
+        """
+        AVAILABLE COPIES - Read only from previously running sites
+        Condition:
+        If a site has a committed write to the data before T began,
+        and it was continuously up until T began, then it is a previously running site
+        """
+        t_start_time = transaction.start_time
+        all_sites = self.get_all_site_ids(data_id)
+
+        previously_running_sites = list()
+        for site_id in all_sites:
+            site = self.get_site(site_id)
+            valid_commit_logs = [log for log in site.data_store[data_id] if log.timestamp < t_start_time]
+            if not valid_commit_logs:
+                continue
+            last_valid_commit_time = valid_commit_logs[-1].timestamp
+            site_logs = self.site_status[site_id].site_log
+
+            # If site was down between t_start_time and last_valid_commit_time,
+            # it is a bad site
+            down_logs = [log for log in reversed(site_logs) if not log[0]]
+            down_ranged_logs = [log for log in down_logs if t_start_time > log[1] > last_valid_commit_time]
+            if down_ranged_logs:
+                continue
+
+            previously_running_sites.append(site_id)
+
+        return previously_running_sites
 
     def is_site_up(self, site_id: int) -> bool:
         return self.site_status[site_id].status
@@ -67,11 +97,12 @@ class SiteManager:
         self.site_status[site_id].site_log.append((False, timestamp))
         print(f"Site {site_id} fails")
 
-    def recover(self, site_id: int, timestamp: int):
+    def recover(self, site_id: int, timestamp: int) -> int:
         self.site_status[site_id].status = True
         self.site_status[site_id].site_log.append((True, timestamp))
         # TODO: check which pending reads and writes can be completed
         print(f"Site {site_id} recovers")
+        return site_id
 
     def dump(self):
         for site_id in range(1, 11):

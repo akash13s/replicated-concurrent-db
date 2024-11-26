@@ -30,6 +30,7 @@ class Driver:
             self.sm.fail(int(args[0]), timestamp)
         elif instruction == 'recover':
             self.sm.recover(int(args[0]), timestamp)
+            self.tm.exec_pending(int(args[0]), timestamp)
         elif instruction == 'dump':
             self.sm.dump()
 
@@ -40,7 +41,8 @@ def read_file(file):
         for line in file:
             stripped_line = line.strip()
             if not stripped_line.startswith("//") and stripped_line:
-                commands_list.append(stripped_line)
+                uncommented_line = stripped_line.split("//")[0]
+                commands_list.append(uncommented_line.strip())
     return commands_list
 
 

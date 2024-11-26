@@ -3,6 +3,10 @@ from typing import Optional, Any
 from data_models import DataLog
 
 
+def extract_num(key: str) -> int:
+    return int(key[1:])
+
+
 class Site:
 
     def __init__(self, site_id: int):
@@ -16,6 +20,13 @@ class Site:
         # temporary storage for any write instruction -> Dict[str: list[DataLog]]
         # Format: data_id -> history of data_values
         self.data_history = {}
+
+        # reads pending for a site -> Set(Tuple(t_id, data_id))
+        self.pending_reads = set()
+
+        # writes pending for a site -> Set(Tuple(t_id, data_id, value))
+        self.pending_writes = set()
+
         self.initialize_site_data()
 
     def initialize_site_data(self):
@@ -43,21 +54,7 @@ class Site:
 
         return None
 
-    # TODO: How to read ?? Always read the Snapshot of DB at Ti start?
-    # OR Read the latest uncommited value?
     def read(self, t_id: str, data_id: str, timestamp: int) -> Optional[int]:
-        """Reads the most recent value for a data item, considering uncommitted writes by the transaction."""
-
-        # check if the transaction has an entry in the data_history
-        # return the most recent uncommitted value written by this transaction
-        if data_id in self.data_history:
-            uncommitted_writes = [entry for entry in self.data_history[data_id] if entry.transaction_id == t_id]
-            if uncommitted_writes:
-                value = uncommitted_writes[-1].value
-                print(f"Transaction {t_id} reads {value} from uncommitted {data_id} at site {self.site_id}")
-                return value
-
-        # if no uncommitted value for this transaction is found,
         # Data is read from the committed data_store
         if data_id in self.data_store:
             value = self.get_value_using_snapshot_isolation(data_id, timestamp)
@@ -106,10 +103,19 @@ class Site:
 
     def dump(self):
         status = f"site {self.site_id} - "
-        ordered_data = sorted(self.data_store.keys(), key=self.extract_num)
+        ordered_data = sorted(self.data_store.keys(), key=extract_num)
         data_status = [f"{data_id}: {self.data_store[data_id][-1].value}" for data_id in ordered_data]
         status += ", ".join(data_status)
         print(status)
 
-    def extract_num(self, key: str) -> int:
-        return int(key[1:])
+    def add_to_pending_reads(self, t_id: str, data_id: str):
+        self.pending_reads.add((t_id, data_id))
+
+    def add_to_pending_writes(self, t_id: str, data_id: str, value: int):
+        self.pending_writes.add((t_id, data_id, value))
+
+    def remove_from_pending_reads(self, t_id: str, data_id: str):
+        self.pending_reads.discard((t_id, data_id))
+
+    def remove_from_pending_writes(self, t_id: str, data_id: str, value: int):
+        self.pending_writes.discard((t_id, data_id, value))
