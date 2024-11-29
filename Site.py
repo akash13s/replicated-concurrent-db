@@ -48,14 +48,12 @@ class Site:
 
         return None
 
-    def read(self, t_id: str, data_id: str, timestamp: int) -> Optional[int]:
+    def read(self, data_id: str, timestamp: int) -> Optional[int]:
         # Data is read from the committed data_store
         if data_id in self.data_store:
             value = self.get_value_using_snapshot_isolation(data_id, timestamp)
-            print(f"Transaction {t_id} reads {value} from committed {data_id} at site {self.site_id}")
             return value
 
-        print(f"Data {data_id} not found at site {self.site_id}")
         return None
 
     def write(self, t_id: str, data_id: str, value: int, timestamp: int) -> bool:
@@ -68,9 +66,6 @@ class Site:
             transaction_id=t_id,
             committed=False
         ))
-
-        # TODO: remove print statement
-        print(f"Transaction {t_id} writes {value} to {data_id} at site {self.site_id}")
         return True
 
     def persist(self, t_id: str, timestamp: int):
@@ -95,9 +90,9 @@ class Site:
                 committed=True
             ))
 
-    def dump(self):
+    def dump(self) -> str:
         status = f"site {self.site_id} - "
         ordered_data = sorted(self.data_store.keys(), key=extract_num)
         data_status = [f"{data_id}: {self.data_store[data_id][-1].value}" for data_id in ordered_data]
         status += ", ".join(data_status)
-        print(status)
+        return status

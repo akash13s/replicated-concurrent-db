@@ -5,7 +5,9 @@ from data_models import SiteStatus, DataLog, Transaction
 
 
 class SiteManager:
-    def __init__(self):
+    def __init__(self, verbose: bool):
+        self.verbose = verbose
+
         # map of sites
         self.sites: Dict[int, Site] = {
             i: Site(i) for i in range(1, 11)
@@ -115,9 +117,11 @@ class SiteManager:
         return site_id
 
     def dump(self):
+        print("\nSITE DUMP")
         for site_id in range(1, 11):
             if self.is_site_up(site_id):
-                self.get_site(site_id).dump()
+                site_dump = self.get_site(site_id).dump()
+                print(site_dump)
 
     def add_to_pending_reads(self, site_id: int, t_id: str, data_id: str):
         self.pending_reads[site_id].add((t_id, data_id))

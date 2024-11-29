@@ -5,8 +5,9 @@ from site_manager import SiteManager
 
 
 class TransactionManager:
-    def __init__(self, site_manager: SiteManager):
+    def __init__(self, site_manager: SiteManager, verbose: bool):
         self.site_manager = site_manager
+        self.verbose = verbose
 
         # storage to store transaction information
         self.transaction_map: Dict[str, Transaction] = {}
@@ -26,7 +27,7 @@ class TransactionManager:
             is_read_only=True
         )
         self.conflict_graph[t_id] = set()
-        print(f"Transaction {t_id} begins")
+        print(f"{t_id} begins")
 
     def read(
             self,
@@ -52,8 +53,8 @@ class TransactionManager:
         read_ready_sites = [site for site in available_sites if site in previously_running_sites]
 
         if not read_ready_sites:
-            # TODO: Remove print statement in final commit
-            print(f"No sites available - Moving (R,{t_id},{data_id}) to pending reads")
+            if self.verbose:
+                print(f"No sites available - Moving (R,{t_id},{data_id}) to pending reads")
 
             for site_id in previously_running_sites:
                 self.site_manager.add_to_pending_reads(site_id, t_id, data_id)
@@ -62,14 +63,23 @@ class TransactionManager:
         # Try to read from any of the read ready sites
         success = False
         for site_id in read_ready_sites:
-            value = self.site_manager.get_site(site_id).read(t_id, data_id, transaction.start_time)
+            value = self.site_manager.get_site(site_id).read(data_id, transaction.start_time)
+
             # TODO: should we update transaction reads regardless of available sites?
             # In that case, we need to move the next few lines of code to the top of self.read()
             if value is not None:
                 transaction.reads.add(data_id)
                 transaction.sites_accessed.append((site_id, Operations.READ, timestamp))
+
+                if self.verbose:
+                    print(f"Transaction {t_id} reads {value} from committed {data_id} at site {site_id}")
+                print(f"{data_id}: {value}")
+
                 success = True
                 break
+
+            if self.verbose and value is None:
+                print(f"Data {data_id} not found at site {site_id}")
 
         # remove the read from pending reads
         if success and is_pending_read:
@@ -98,8 +108,9 @@ class TransactionManager:
         available_sites = self.site_manager.get_available_sites(data_id)
 
         if not available_sites:
-            # TODO: remove print statement in final commit
-            print(f"No sites available - Moving (W,{t_id},{data_id},{value}) to pending writes")
+            if self.verbose:
+                print(f"No sites available - Moving (W,{t_id},{data_id},{value}) to pending writes")
+
             writable_sites = self.site_manager.get_all_site_ids(data_id)
             for site_id in writable_sites:
                 self.site_manager.add_to_pending_writes(site_id, t_id, data_id, value)
@@ -107,11 +118,15 @@ class TransactionManager:
 
         # Write to all available sites
         success = False
+        success_sites = []
         for site_id in available_sites:
             site = self.site_manager.get_site(site_id)
             if site.write(t_id, data_id, value, timestamp):
                 success = True
+                success_sites.append(site_id)
                 transaction.sites_accessed.append((site_id, Operations.WRITE, timestamp))
+                if self.verbose:
+                    print(f"Transaction {t_id} writes {value} to {data_id} at site {site_id}")
 
         if success and is_pending_write:
             writable_sites = self.site_manager.get_all_site_ids(data_id)
@@ -119,6 +134,8 @@ class TransactionManager:
                 self.site_manager.remove_from_pending_writes(site_id, t_id, data_id, value)
 
         if success:
+            print(f"Transaction {t_id} writes {value} to {data_id} at sites {success_sites}")
+
             transaction = self.transaction_map[t_id]
             transaction.writes.add(data_id)
             # Update conflict graph
@@ -130,7 +147,7 @@ class TransactionManager:
                 ):
                     self.conflict_graph[t_id].add(other_t_id)
 
-    def validate_site_failure(self, t_id: str):
+    def clears_site_failure_check(self, t_id: str) -> bool:
         """
         AVAILABLE COPIES: At Commit time: Transaction T tests whether all servers
         that T accessed (read or write) have been up since the first time T accessed them. If not, T aborts.
@@ -140,14 +157,14 @@ class TransactionManager:
         transaction = self.transaction_map[t_id]
 
         if transaction.is_read_only:
-            # TODO: remove print statement in the final commit
-            print(f"Transaction {t_id} is in Read-only mode - no need to check for site failures")
+            if self.verbose:
+                print(f"Transaction {t_id} is in Read-only mode - no need to check for site failures")
             return True
 
         sites_accessed = transaction.sites_accessed
 
-        # TODO: remove print statement in the final commit
-        print(f"Sites accessed by Transaction {t_id}: {sites_accessed}")
+        if self.verbose:
+            print(f"Sites accessed by Transaction {t_id}: {sites_accessed}")
 
         failure = False
         site_id_failed = None
@@ -163,11 +180,12 @@ class TransactionManager:
             self.abort_transaction(AbortType.SITE_FAILURE, t_id, site_id=site_id_failed)
             return False
 
-        print(f"All sites accessed by Transaction {t_id} have been up since the first time it accessed them")
+        if self.verbose:
+            print(f"All sites accessed by Transaction {t_id} have been up since the first time it accessed them")
 
         return True
 
-    def validate_first_committer_rule(self, t_id: str):
+    def clears_first_committer_rule_check(self, t_id: str) -> bool:
         """
         :param t_id:
         :return: True if transaction can proceed ahead and False otherwise
@@ -191,12 +209,12 @@ class TransactionManager:
         # after T began
 
         if transaction.is_read_only:
-            # TODO: remove print statement in final commit
-            print(f"Transaction {t_id} is in Read-only mode - no need to check for first committer rule")
+            if self.verbose:
+                print(f"Transaction {t_id} is in Read-only mode - no need to check for first committer rule")
             return True
 
-        # TODO: remove print statement in final commit
-        print(f"Data items that Transaction {t_id} wants to commit: {transaction.writes}")
+        if self.verbose:
+            print(f"Data items that Transaction {t_id} wants to commit: {transaction.writes}")
 
         for data_id in transaction.writes:
 
@@ -208,36 +226,37 @@ class TransactionManager:
 
                 for log in logs:
                     if log.committed and log.transaction_id != t_id and log.timestamp > transaction.start_time:
-                        # TODO: remove print statement in final commit
                         self.abort_transaction(AbortType.FIRST_COMMITTER_WRITE, t_id)
                         return False
 
-        # TODO: remove print statement in final commit
-        print(f"Transaction {t_id} passes the 1st committer check")
+        if self.verbose:
+            print(f"Transaction {t_id} passes the 1st committer check")
 
         return True
 
     def abort_transaction(self, abort_type: AbortType, t_id: str, data_id: str = None, site_id: int = None):
-        if AbortType.IMPOSSIBLE_READ == abort_type:
-            print(f"Aborting Transaction {t_id} due to impossible read rule on {data_id}")
-        if AbortType.FIRST_COMMITTER_WRITE == abort_type:
-            print(f"Aborting Transaction {t_id} due to first committer rule")
-        if AbortType.SITE_FAILURE == abort_type:
-            print(f"Aborting Transaction {t_id} as site {site_id} failed since it first wrote to it")
+        if self.verbose:
+            if AbortType.IMPOSSIBLE_READ == abort_type:
+                print(f"Aborting Transaction {t_id} due to impossible read rule on {data_id}")
+            if AbortType.FIRST_COMMITTER_WRITE == abort_type:
+                print(f"Aborting Transaction {t_id} due to first committer rule")
+            if AbortType.SITE_FAILURE == abort_type:
+                print(f"Aborting Transaction {t_id} as site {site_id} failed since it first wrote to it")
 
         transaction = self.transaction_map[t_id]
         transaction.status = TransactionStatus.ABORTED
+        print(f"{t_id} aborts")
 
     def end(self, t_id: str, timestamp: int):
         if self.is_invalid(t_id):
             return
 
         # Check for ABORT using Available Copies
-        if not self.validate_site_failure(t_id):
+        if not self.clears_site_failure_check(t_id):
             return
 
         # First committer rule using Snapshot Isolation
-        if not self.validate_first_committer_rule(t_id):
+        if not self.clears_first_committer_rule_check(t_id):
             return
 
         # TODO: After the transaction commits, we should remove it from the adjacency list -> will come to this later
@@ -245,7 +264,7 @@ class TransactionManager:
         # Commit after above checks
         # TODO: send the transaction object directly
         self.site_manager.commit(t_id, timestamp)
-        print(f"Transaction {t_id} commits")
+        print(f"{t_id} commits")
 
     def exec_pending(self, site_id: int, timestamp: int):
         pending_reads = self.site_manager.pending_reads[site_id].copy()
@@ -255,7 +274,7 @@ class TransactionManager:
         for t_id, data_id, value in pending_writes:
             self.write(t_id, data_id, value, timestamp, True)
 
-    def is_invalid(self, t_id: str):
+    def is_invalid(self, t_id: str) -> bool:
         if t_id not in self.transaction_map:
             print(f"Error: Transaction {t_id} does not exist")
             return True
