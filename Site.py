@@ -21,12 +21,6 @@ class Site:
         # Format: data_id -> history of data_values
         self.data_history = {}
 
-        # reads pending for a site -> Set(Tuple(t_id, data_id))
-        self.pending_reads = set()
-
-        # writes pending for a site -> Set(Tuple(t_id, data_id, value))
-        self.pending_writes = set()
-
         self.initialize_site_data()
 
     def initialize_site_data(self):
@@ -107,15 +101,3 @@ class Site:
         data_status = [f"{data_id}: {self.data_store[data_id][-1].value}" for data_id in ordered_data]
         status += ", ".join(data_status)
         print(status)
-
-    def add_to_pending_reads(self, t_id: str, data_id: str):
-        self.pending_reads.add((t_id, data_id))
-
-    def add_to_pending_writes(self, t_id: str, data_id: str, value: int):
-        self.pending_writes.add((t_id, data_id, value))
-
-    def remove_from_pending_reads(self, t_id: str, data_id: str):
-        self.pending_reads.discard((t_id, data_id))
-
-    def remove_from_pending_writes(self, t_id: str, data_id: str, value: int):
-        self.pending_writes.discard((t_id, data_id, value))

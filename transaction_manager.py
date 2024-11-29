@@ -56,8 +56,7 @@ class TransactionManager:
             print(f"No sites available - Moving (R,{t_id},{data_id}) to pending reads")
 
             for site_id in previously_running_sites:
-                site = self.site_manager.get_site(site_id)
-                site.add_to_pending_reads(t_id, data_id)
+                self.site_manager.add_to_pending_reads(site_id, t_id, data_id)
             return
 
         # Try to read from any of the read ready sites
@@ -75,8 +74,7 @@ class TransactionManager:
         # remove the read from pending reads
         if success and is_pending_read:
             for site_id in read_ready_sites:
-                site = self.site_manager.get_site(site_id)
-                site.remove_from_pending_reads(t_id, data_id)
+                self.site_manager.remove_from_pending_reads(site_id, t_id, data_id)
 
     def write(
             self,
@@ -104,8 +102,7 @@ class TransactionManager:
             print(f"No sites available - Moving (W,{t_id},{data_id},{value}) to pending writes")
             writable_sites = self.site_manager.get_all_site_ids(data_id)
             for site_id in writable_sites:
-                site = self.site_manager.get_site(site_id)
-                site.add_to_pending_writes(t_id, data_id, value)
+                self.site_manager.add_to_pending_writes(site_id, t_id, data_id, value)
             return
 
         # Write to all available sites
@@ -119,8 +116,7 @@ class TransactionManager:
         if success and is_pending_write:
             writable_sites = self.site_manager.get_all_site_ids(data_id)
             for site_id in writable_sites:
-                site = self.site_manager.get_site(site_id)
-                site.remove_from_pending_writes(t_id, data_id, value)
+                self.site_manager.remove_from_pending_writes(site_id, t_id, data_id, value)
 
         if success:
             transaction = self.transaction_map[t_id]
@@ -252,9 +248,8 @@ class TransactionManager:
         print(f"Transaction {t_id} commits")
 
     def exec_pending(self, site_id: int, timestamp: int):
-        site = self.site_manager.get_site(site_id)
-        pending_reads = site.pending_reads.copy()
-        pending_writes = site.pending_writes.copy()
+        pending_reads = self.site_manager.pending_reads[site_id].copy()
+        pending_writes = self.site_manager.pending_writes[site_id].copy()
         for t_id, data_id in pending_reads:
             self.read(t_id, data_id, timestamp, True)
         for t_id, data_id, value in pending_writes:

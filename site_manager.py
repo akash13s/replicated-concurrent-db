@@ -15,13 +15,24 @@ class SiteManager:
         # Format: site_id -> SiteStatus
         self.site_status = {}
 
-        # Initialize all sites as up
+        # reads pending for a site -> Dict(site_id, Set(Tuple(t_id, data_id)))
+        self.pending_reads = dict()
+
+        # writes pending for a site -> Dict(site_id, Set(Tuple(t_id, data_id, value)))
+        self.pending_writes = dict()
+
+        # Initialize all the sites:
+        # 1. initial status is up
+        # 2. pending reads is empty
+        # 3. pending writes is empty
         for site_id in range(1, 11):
             self.site_status[site_id] = SiteStatus(
                 status=True,
                 last_failure_time=-100,
                 site_log=[(True, 0)]
             )
+            self.pending_reads[site_id] = set()
+            self.pending_writes[site_id] = set()
 
         # map of data locations: essentially it also knows where every data item is stored
         self.data_locations = {}  # Dict[str, List[int]] mapping data_id to list of site_ids
@@ -100,7 +111,6 @@ class SiteManager:
     def recover(self, site_id: int, timestamp: int) -> int:
         self.site_status[site_id].status = True
         self.site_status[site_id].site_log.append((True, timestamp))
-        # TODO: check which pending reads and writes can be completed
         print(f"Site {site_id} recovers")
         return site_id
 
@@ -108,3 +118,15 @@ class SiteManager:
         for site_id in range(1, 11):
             if self.is_site_up(site_id):
                 self.get_site(site_id).dump()
+
+    def add_to_pending_reads(self, site_id: int, t_id: str, data_id: str):
+        self.pending_reads[site_id].add((t_id, data_id))
+
+    def add_to_pending_writes(self, site_id: int, t_id: str, data_id: str, value: int):
+        self.pending_writes[site_id].add((t_id, data_id, value))
+
+    def remove_from_pending_reads(self, site_id: int, t_id: str, data_id: str):
+        self.pending_reads[site_id].discard((t_id, data_id))
+
+    def remove_from_pending_writes(self, site_id: int, t_id: str, data_id: str, value: int):
+        self.pending_writes[site_id].discard((t_id, data_id, value))
