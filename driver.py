@@ -1,5 +1,7 @@
-from transaction_manager import TransactionManager
+import sys
+
 from site_manager import SiteManager
+from transaction_manager import TransactionManager
 
 
 class Driver:
@@ -28,6 +30,7 @@ class Driver:
             self.sm.fail(int(args[0]), timestamp)
         elif instruction == 'recover':
             self.sm.recover(int(args[0]), timestamp)
+            self.tm.exec_pending(int(args[0]), timestamp)
         elif instruction == 'dump':
             self.sm.dump()
 
@@ -38,15 +41,20 @@ def read_file(file):
         for line in file:
             stripped_line = line.strip()
             if not stripped_line.startswith("//") and stripped_line:
-                commands_list.append(stripped_line)
+                uncommented_line = stripped_line.split("//")[0]
+                commands_list.append(uncommented_line.strip())
     return commands_list
 
 
 if __name__ == "__main__":
-    driver = Driver()
+    if len(sys.argv) < 2:
+        print("Usage: python driver.py <file>")
+        sys.exit(1)
 
-    file_path = "input/input15"
+    file_path = sys.argv[1]
     commands = read_file(file_path)
+
+    driver = Driver()
 
     for idx, command in enumerate(commands):
         driver.process_line(command, idx + 1)
