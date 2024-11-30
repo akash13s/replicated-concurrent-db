@@ -53,8 +53,7 @@ class TransactionManager:
         read_ready_sites = [site for site in available_sites if site in previously_running_sites]
 
         if not read_ready_sites:
-            if self.verbose:
-                print(f"No sites available - Moving (R,{t_id},{data_id}) to pending reads")
+            print(f"No sites available - Moving (R,{t_id},{data_id}) to pending reads")
 
             for site_id in previously_running_sites:
                 self.site_manager.add_to_pending_reads(site_id, t_id, data_id)
@@ -72,7 +71,7 @@ class TransactionManager:
                 transaction.sites_accessed.append((site_id, Operations.READ, timestamp))
 
                 if self.verbose:
-                    print(f"Transaction {t_id} reads {value} from committed {data_id} at site {site_id}")
+                    print(f"{t_id} reads {value} from committed {data_id} at site {site_id}")
                 print(f"{data_id}: {value}")
 
                 success = True
@@ -108,8 +107,7 @@ class TransactionManager:
         available_sites = self.site_manager.get_available_sites(data_id)
 
         if not available_sites:
-            if self.verbose:
-                print(f"No sites available - Moving (W,{t_id},{data_id},{value}) to pending writes")
+            print(f"No sites available - Moving (W,{t_id},{data_id},{value}) to pending writes")
 
             writable_sites = self.site_manager.get_all_site_ids(data_id)
             for site_id in writable_sites:
@@ -126,7 +124,7 @@ class TransactionManager:
                 success_sites.append(site_id)
                 transaction.sites_accessed.append((site_id, Operations.WRITE, timestamp))
                 if self.verbose:
-                    print(f"Transaction {t_id} writes {value} to {data_id} at site {site_id}")
+                    print(f"{t_id} writes {value} to {data_id} at site {site_id}")
 
         if success and is_pending_write:
             writable_sites = self.site_manager.get_all_site_ids(data_id)
@@ -134,7 +132,7 @@ class TransactionManager:
                 self.site_manager.remove_from_pending_writes(site_id, t_id, data_id, value)
 
         if success:
-            print(f"Transaction {t_id} writes {value} to {data_id} at sites {success_sites}")
+            print(f"{t_id} writes {value} to {data_id} at sites {success_sites}")
 
             transaction = self.transaction_map[t_id]
             transaction.writes.add(data_id)
@@ -158,13 +156,13 @@ class TransactionManager:
 
         if transaction.is_read_only:
             if self.verbose:
-                print(f"Transaction {t_id} is in Read-only mode - no need to check for site failures")
+                print(f"{t_id} is in Read-only mode - no need to check for site failures")
             return True
 
         sites_accessed = transaction.sites_accessed
 
         if self.verbose:
-            print(f"Sites accessed by Transaction {t_id}: {sites_accessed}")
+            print(f"Sites accessed by {t_id}: {sites_accessed}")
 
         failure = False
         site_id_failed = None
@@ -181,7 +179,7 @@ class TransactionManager:
             return False
 
         if self.verbose:
-            print(f"All sites accessed by Transaction {t_id} have been up since the first time it accessed them")
+            print(f"All sites accessed by {t_id} have been up since the first time it accessed them")
 
         return True
 
@@ -210,38 +208,36 @@ class TransactionManager:
 
         if transaction.is_read_only:
             if self.verbose:
-                print(f"Transaction {t_id} is in Read-only mode - no need to check for first committer rule")
+                print(f"{t_id} is in Read-only mode - no need to check for first committer rule")
             return True
 
         if self.verbose:
-            print(f"Data items that Transaction {t_id} wants to commit: {transaction.writes}")
+            print(f"Data items that {t_id} wants to commit: {transaction.writes}")
 
         for data_id in transaction.writes:
 
             site_ids = self.site_manager.get_available_sites(data_id)
 
             for site_id in site_ids:
-                # TODO: better, we can go through the data store to check for commited logs
-                logs = self.site_manager.get_all_logs_from_site_for_data_id(site_id, data_id)
-
+                logs = self.site_manager.get_committed_logs_from_site_for_data_id(site_id, data_id)
                 for log in logs:
                     if log.committed and log.transaction_id != t_id and log.timestamp > transaction.start_time:
                         self.abort_transaction(AbortType.FIRST_COMMITTER_WRITE, t_id)
                         return False
 
         if self.verbose:
-            print(f"Transaction {t_id} passes the 1st committer check")
+            print(f"{t_id} passes the 1st committer check")
 
         return True
 
     def abort_transaction(self, abort_type: AbortType, t_id: str, data_id: str = None, site_id: int = None):
         if self.verbose:
             if AbortType.IMPOSSIBLE_READ == abort_type:
-                print(f"Aborting Transaction {t_id} due to impossible read rule on {data_id}")
+                print(f"Aborting {t_id} due to impossible read rule on {data_id}")
             if AbortType.FIRST_COMMITTER_WRITE == abort_type:
-                print(f"Aborting Transaction {t_id} due to first committer rule")
+                print(f"Aborting {t_id} due to first committer rule")
             if AbortType.SITE_FAILURE == abort_type:
-                print(f"Aborting Transaction {t_id} as site {site_id} failed since it first wrote to it")
+                print(f"Aborting {t_id} as site {site_id} failed since it first wrote to it")
 
         transaction = self.transaction_map[t_id]
         transaction.status = TransactionStatus.ABORTED
@@ -251,19 +247,19 @@ class TransactionManager:
         if self.is_invalid(t_id):
             return
 
-        # Check for ABORT using Available Copies
+        # Check for ABORT based on Available Copies
         if not self.clears_site_failure_check(t_id):
             return
 
-        # First committer rule using Snapshot Isolation
+        # Check for ABORT based on First committer rule in Snapshot Isolation
         if not self.clears_first_committer_rule_check(t_id):
             return
 
         # TODO: After the transaction commits, we should remove it from the adjacency list -> will come to this later
 
         # Commit after above checks
-        # TODO: send the transaction object directly
-        self.site_manager.commit(t_id, timestamp)
+        transaction = self.transaction_map[t_id]
+        self.site_manager.commit(transaction, timestamp)
         print(f"{t_id} commits")
 
     def exec_pending(self, site_id: int, timestamp: int):
@@ -276,12 +272,12 @@ class TransactionManager:
 
     def is_invalid(self, t_id: str) -> bool:
         if t_id not in self.transaction_map:
-            print(f"Error: Transaction {t_id} does not exist")
+            print(f"Error: {t_id} does not exist")
             return True
 
         transaction = self.transaction_map[t_id]
         if transaction.status != TransactionStatus.ACTIVE:
-            print(f"Error: Transaction {t_id} is not active")
+            print(f"Error: {t_id} is not active")
             return True
 
         return False

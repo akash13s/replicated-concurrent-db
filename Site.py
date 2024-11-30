@@ -68,27 +68,21 @@ class Site:
         ))
         return True
 
-    def persist(self, t_id: str, timestamp: int):
-        for data_id in self.data_history:
-            valid_logs = [log for log in reversed(self.data_history[data_id]) if log.transaction_id == t_id]
-            if not valid_logs:
-                continue
-            last_log = valid_logs[0]
-            commit_value = last_log.value
+    def persist(self, t_id: str, data_id: str, timestamp: int):
+        data_history = self.data_history[data_id]
+        valid_logs = [log for log in reversed(data_history) if log.transaction_id == t_id]
+        if not valid_logs:
+            return
 
-            self.data_history[data_id].append(DataLog(
-                value=commit_value,
-                timestamp=timestamp,
-                transaction_id=t_id,
-                committed=True
-            ))
+        last_log = valid_logs[0]
+        commit_value = last_log.value
 
-            self.data_store[data_id].append(DataLog(
-                value=commit_value,
-                timestamp=timestamp,
-                transaction_id=t_id,
-                committed=True
-            ))
+        self.data_store[data_id].append(DataLog(
+            value=commit_value,
+            timestamp=timestamp,
+            transaction_id=t_id,
+            committed=True
+        ))
 
     def dump(self) -> str:
         status = f"site {self.site_id} - "

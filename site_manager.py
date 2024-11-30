@@ -57,9 +57,9 @@ class SiteManager:
     def get_site(self, site_id: int):
         return self.sites.get(site_id)
 
-    def get_all_logs_from_site_for_data_id(self, site_id: int, data_id: str) -> List[DataLog]:
+    def get_committed_logs_from_site_for_data_id(self, site_id: int, data_id: str) -> List[DataLog]:
         site = self.sites.get(site_id)
-        return site.data_history.get(data_id, [])
+        return site.data_store.get(data_id, [])
 
     def get_previously_running_sites(self, data_id: str, transaction: Transaction) -> List[int]:
         """
@@ -97,11 +97,12 @@ class SiteManager:
     def get_last_fail_time(self, site_id: int):
         return self.site_status[site_id].last_failure_time
 
-    def commit(self, t_id: str, timestamp: int):
-        for site_id in self.sites.keys():
-            if self.is_site_up(site_id):
+    def commit(self, transaction: Transaction, timestamp: int):
+        for data_id in transaction.writes:
+            written_sites = self.get_available_sites(data_id)
+            for site_id in written_sites:
                 site = self.get_site(site_id)
-                site.persist(t_id, timestamp)
+                site.persist(transaction.id, data_id, timestamp)
 
     def fail(self, site_id: int, timestamp: int):
         self.site_status[site_id].status = False
