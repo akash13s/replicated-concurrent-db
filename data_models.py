@@ -19,6 +19,13 @@ class AbortType(Enum):
     SITE_FAILURE = "SITE_FAILURE"
     IMPOSSIBLE_READ = "IMPOSSIBLE_READ"
     FIRST_COMMITTER_WRITE = "FIRST_COMMITTER_WRITE"
+    CONSECUTIVE_RW_CYCLE = "CONSECUTIVE_RW_CYCLE"
+
+
+class EdgeType(Enum):
+    RW = "RW"
+    WW = "WW"
+    WR = "WR"
 
 
 @dataclass
@@ -39,6 +46,7 @@ class Transaction:
     is_read_only: bool
     # List of sites accessed by this transaction - Tuple content - (site_id, operation, timestamp)
     sites_accessed: List[Tuple[int, str, int]]
+    commit_time: int
 
 
 @dataclass

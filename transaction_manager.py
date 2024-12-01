@@ -13,8 +13,8 @@ class TransactionManager:
         self.transaction_map: Dict[str, Transaction] = {}
 
         # Serialization Graph to identify data dependencies
-        # transaction_id -> set of conflicting transaction_ids
-        self.conflict_graph: Dict[str, Set[str]] = {}
+        # Dict of transaction_id -> Dict of EdgeType and a set of conflicting transaction_ids
+        self.conflict_graph: Dict[str, Dict[EdgeType, Set[str]]] = {}
 
     def begin(self, t_id: str, timestamp: int):
         self.transaction_map[t_id] = Transaction(
@@ -24,9 +24,10 @@ class TransactionManager:
             writes=set(),
             reads=set(),
             sites_accessed=[],
-            is_read_only=True
+            is_read_only=True,
+            commit_time=-1
         )
-        self.conflict_graph[t_id] = set()
+        self.conflict_graph[t_id] = dict()
         print(f"{t_id} begins")
 
     def read(
@@ -80,7 +81,7 @@ class TransactionManager:
             if self.verbose and value is None:
                 print(f"Data {data_id} not found at site {site_id}")
 
-        # remove the read from pending reads
+        # Remove the read from pending reads
         if success and is_pending_read:
             for site_id in read_ready_sites:
                 self.site_manager.remove_from_pending_reads(site_id, t_id, data_id)
@@ -136,14 +137,6 @@ class TransactionManager:
 
             transaction = self.transaction_map[t_id]
             transaction.writes.add(data_id)
-            # Update conflict graph
-            for other_t_id, other_transaction in self.transaction_map.items():
-                if (
-                        other_t_id != t_id and
-                        other_transaction.status == TransactionStatus.ACTIVE and
-                        data_id in other_transaction.reads
-                ):
-                    self.conflict_graph[t_id].add(other_t_id)
 
     def clears_site_failure_check(self, t_id: str) -> bool:
         """
@@ -238,6 +231,8 @@ class TransactionManager:
                 print(f"Aborting {t_id} due to first committer rule")
             if AbortType.SITE_FAILURE == abort_type:
                 print(f"Aborting {t_id} as site {site_id} failed since it first wrote to it")
+            if AbortType.CONSECUTIVE_RW_CYCLE == abort_type:
+                print(f"Aborting {t_id} due to consecutive read-write cycle in the conflict graph")
 
         transaction = self.transaction_map[t_id]
         transaction.status = TransactionStatus.ABORTED
@@ -255,11 +250,15 @@ class TransactionManager:
         if not self.clears_first_committer_rule_check(t_id):
             return
 
-        # TODO: After the transaction commits, we should remove it from the adjacency list -> will come to this later
+        # Check for ABORT based on Consecutive RW edges in Serialization Graph
+        if not self.update_conflict_graph(t_id, timestamp):
+            return
 
         # Commit after above checks
         transaction = self.transaction_map[t_id]
         self.site_manager.commit(transaction, timestamp)
+        transaction.status = TransactionStatus.COMMITTED
+        transaction.commit_time = timestamp
         print(f"{t_id} commits")
 
     def exec_pending(self, site_id: int, timestamp: int):
@@ -281,3 +280,159 @@ class TransactionManager:
             return True
 
         return False
+
+    def update_conflict_graph(self, t_id: str, timestamp: int) -> bool:
+        # In every case below:
+        # If committing T' causes a serialization graph cycle
+        # having two rw edges in a row, then don't commit T' and
+        # remove T' and all associated edges from  the serialization graph,
+        # otherwise commit T' and leave
+        # it in the serialization graph.
+        success = True
+        if success:
+            success = self.add_ww_edge(t_id)
+        if success:
+            success = self.add_wr_edge(t_id)
+        if success:
+            success = self.add_rw_edge(t_id, timestamp)
+
+        if success and self.verbose:
+            print(f"{t_id} passes the back-to-back RW edge cycle check")
+        return success
+
+    def add_ww_edge(self, t_id: str) -> bool:
+        # Upon end(T'), add
+        # T --ww--> T' to the serialization graph if T commits before T'
+        # begins, and they both write to x
+
+        t_map = self.transaction_map
+        txn = self.transaction_map[t_id]
+
+        for other_txn in t_map.values():
+            if other_txn.id == t_id:
+                continue
+            if other_txn.status == TransactionStatus.COMMITTED and other_txn.commit_time < txn.start_time:
+                common_writes = [data_id for data_id in other_txn.writes if data_id in txn.writes]
+                if common_writes:
+                    if EdgeType.WW not in self.conflict_graph[other_txn.id]:
+                        self.conflict_graph[other_txn.id][EdgeType.WW] = set()
+                    self.conflict_graph[other_txn.id][EdgeType.WW].add(txn.id)
+
+                    # Check for RW cycle
+                    if self.has_rw_edge_cycle():
+                        self.remove_transaction_from_conflict_graph(t_id)
+                        self.abort_transaction(AbortType.CONSECUTIVE_RW_CYCLE, t_id)
+                        return False
+
+        return True
+
+    def add_wr_edge(self, t_id: str) -> bool:
+        # Upon end(T'), add
+        # T --wr--> T' to the serialization graph if T writes to x,
+        # commits before T' begins, and T' reads from x
+
+        t_map = self.transaction_map
+        txn = self.transaction_map[t_id]
+
+        for other_txn in t_map.values():
+            if other_txn.id == t_id:
+                continue
+            if other_txn.status == TransactionStatus.COMMITTED and other_txn.commit_time < txn.start_time:
+                write_reads = [data_id for data_id in other_txn.writes if data_id in txn.reads]
+                if write_reads:
+                    if EdgeType.WR not in self.conflict_graph[other_txn.id]:
+                        self.conflict_graph[other_txn.id][EdgeType.WR] = set()
+                    self.conflict_graph[other_txn.id][EdgeType.WR].add(txn.id)
+
+                    # Check for RW cycle
+                    if self.has_rw_edge_cycle():
+                        self.remove_transaction_from_conflict_graph(t_id)
+                        self.abort_transaction(AbortType.CONSECUTIVE_RW_CYCLE, t_id)
+                        return False
+
+        return True
+
+    def add_rw_edge(self, t_id: str, t_end_time: int) -> bool:
+        # Upon end(T'), add
+        # T --rw--> T' to the serialization graph if T reads from x, T' writes to
+        # x, and T begins before end(T')
+
+        t_map = self.transaction_map
+        txn = self.transaction_map[t_id]
+
+        for other_txn in t_map.values():
+            if other_txn.id == t_id:
+                continue
+            if other_txn.start_time < t_end_time:
+                read_writes = [data_id for data_id in other_txn.reads if data_id in txn.writes]
+                if read_writes:
+                    if EdgeType.RW not in self.conflict_graph[other_txn.id]:
+                        self.conflict_graph[other_txn.id][EdgeType.RW] = set()
+                    self.conflict_graph[other_txn.id][EdgeType.RW].add(txn.id)
+
+                    # Check for RW cycle
+                    if self.has_rw_edge_cycle():
+                        self.remove_transaction_from_conflict_graph(t_id)
+                        self.abort_transaction(AbortType.CONSECUTIVE_RW_CYCLE, t_id)
+                        return False
+
+        return True
+
+    def has_rw_edge_cycle(self) -> bool:
+        visited = set()
+        current_path = set()
+        edge_set = dict()
+
+        def dfs(node: str) -> bool:
+            visited.add(node)
+            current_path.add(node)
+
+            for edgeType in self.conflict_graph[node]:
+                for neighbor in self.conflict_graph[node][edgeType]:
+                    edge_set[node] = (edgeType, neighbor)
+
+                    if neighbor in current_path:
+                        return True
+
+                    has_cycle = dfs(neighbor)
+                    if has_cycle:
+                        return True
+            return False
+
+        def has_b2b_rw_edges(node: str, is_prev_rw: bool = False) -> bool:
+            edge_type, next_node = edge_set[node]
+            if edge_type == EdgeType.RW and is_prev_rw:
+                return True
+            if edge_type == EdgeType.RW:
+                check = has_b2b_rw_edges(next_node, True)
+                if check:
+                    return True
+
+            check = has_b2b_rw_edges(next_node, False)
+            if check:
+                return True
+
+        for t_id in self.transaction_map.keys():
+            if t_id not in visited:
+                current_path = set()
+                edge_set = dict()
+                contains_cycle = dfs(t_id)
+                if contains_cycle:
+                    if self.verbose:
+                        print("Cycle detected in conflict graph")
+                        print(edge_set)
+                    if has_b2b_rw_edges(t_id, is_prev_rw=False):
+                        if self.verbose:
+                            print("Cycle has back to back RW edges")
+                        return True
+
+        return False
+
+    def remove_transaction_from_conflict_graph(self, t_id: str):
+        self.conflict_graph[t_id] = dict()
+
+        for transaction in self.transaction_map.values():
+            for edgeType in self.conflict_graph[transaction.id]:
+                for neighbor_id in self.conflict_graph[transaction.id][edgeType].copy():
+                    if neighbor_id == t_id:
+                        self.conflict_graph[transaction.id][edgeType].remove(neighbor_id)
