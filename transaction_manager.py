@@ -42,6 +42,8 @@ class TransactionManager:
 
         transaction = self.transaction_map[t_id]
 
+        # TODO: can an already waiting transaction read the next instruction?
+
         previously_running_sites = self.site_manager.get_previously_running_sites(data_id, transaction)
 
         # ABORT if it is an impossible read - (Based on Available Copies)
@@ -65,8 +67,6 @@ class TransactionManager:
         for site_id in read_ready_sites:
             value = self.site_manager.get_site(site_id).read(data_id, transaction.start_time)
 
-            # TODO: should we update transaction reads regardless of available sites?
-            # In that case, we need to move the next few lines of code to the top of self.read()
             if value is not None:
                 transaction.reads.add(data_id)
                 transaction.sites_accessed.append((site_id, Operations.READ, timestamp))
@@ -98,6 +98,8 @@ class TransactionManager:
             return
 
         transaction = self.transaction_map[t_id]
+
+        # TODO: can an already waiting transaction write the next instruction?
 
         # Mark the transaction as a read-write transaction.
         # Useful for Available Copies Algorithm.
