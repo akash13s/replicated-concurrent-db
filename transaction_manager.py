@@ -42,8 +42,6 @@ class TransactionManager:
 
         transaction = self.transaction_map[t_id]
 
-        # TODO: can an already waiting transaction read the next instruction?
-
         previously_running_sites = self.site_manager.get_previously_running_sites(data_id, transaction)
 
         # ABORT if it is an impossible read - (Based on Available Copies)
@@ -98,8 +96,6 @@ class TransactionManager:
             return
 
         transaction = self.transaction_map[t_id]
-
-        # TODO: can an already waiting transaction write the next instruction?
 
         # Mark the transaction as a read-write transaction.
         # Useful for Available Copies Algorithm.

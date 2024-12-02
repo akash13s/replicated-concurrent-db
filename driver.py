@@ -1,3 +1,9 @@
+"""
+Authors:
+    - Rishav Roy
+    - Akash Kumar Shrivastva
+"""
+
 import argparse
 import os
 import sys
