@@ -5,7 +5,9 @@ from data_models import SiteStatus, DataLog, Transaction
 
 
 class SiteManager:
-    def __init__(self):
+    def __init__(self, verbose: bool):
+        self.verbose = verbose
+
         # map of sites
         self.sites: Dict[int, Site] = {
             i: Site(i) for i in range(1, 11)
@@ -55,9 +57,9 @@ class SiteManager:
     def get_site(self, site_id: int):
         return self.sites.get(site_id)
 
-    def get_all_logs_from_site_for_data_id(self, site_id: int, data_id: str) -> List[DataLog]:
+    def get_committed_logs_from_site_for_data_id(self, site_id: int, data_id: str) -> List[DataLog]:
         site = self.sites.get(site_id)
-        return site.data_history.get(data_id, [])
+        return site.data_store.get(data_id, [])
 
     def get_previously_running_sites(self, data_id: str, transaction: Transaction) -> List[int]:
         """
@@ -95,11 +97,12 @@ class SiteManager:
     def get_last_fail_time(self, site_id: int):
         return self.site_status[site_id].last_failure_time
 
-    def commit(self, t_id: str, timestamp: int):
-        for site_id in self.sites.keys():
-            if self.is_site_up(site_id):
+    def commit(self, transaction: Transaction, timestamp: int):
+        for data_id in transaction.writes:
+            written_sites = self.get_available_sites(data_id)
+            for site_id in written_sites:
                 site = self.get_site(site_id)
-                site.persist(t_id, timestamp)
+                site.persist(transaction.id, data_id, timestamp)
 
     def fail(self, site_id: int, timestamp: int):
         self.site_status[site_id].status = False
@@ -115,9 +118,11 @@ class SiteManager:
         return site_id
 
     def dump(self):
+        print("\nSITE DUMP")
         for site_id in range(1, 11):
             if self.is_site_up(site_id):
-                self.get_site(site_id).dump()
+                site_dump = self.get_site(site_id).dump()
+                print(site_dump)
 
     def add_to_pending_reads(self, site_id: int, t_id: str, data_id: str):
         self.pending_reads[site_id].add((t_id, data_id))
