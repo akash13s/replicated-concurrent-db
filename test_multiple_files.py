@@ -35,8 +35,8 @@ def process_directory(input_dir: str, verbose: bool = False):
             commands = read_file(file_path)
 
             # Process each command with timestamp
-            for timestamp, command in enumerate(commands):
-                driver.process_line(command, timestamp)
+            for idx, command in enumerate(commands):
+                driver.process_line(command, idx + 1)
 
             print(f"\nCompleted processing {file_name}")
 
