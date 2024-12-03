@@ -16,19 +16,22 @@ We leverage the following algorithms to achieve the objectives:
 
 ## Main Components
 
-1. __Driver__: The project will have a root driver program to parse the input file comprising of transaction operations. The driver initializes the other components - the *Transaction Manager (TM)* and *10 Site Managers (SM)*. The parsed instructions are then passed into the Transaction Manager.
+1. __Driver__: The distributed database system is built around four key components that work together to ensure reliable and consistent data operations. At the highest level, the Driver serves as the system's main controller and entry point, responsible for processing input commands and coordinating the overall flow of operations. It acts as an orchestrator, interpreting user instructions and directing them to appropriate components.
 
-2. __Transaction Manager__: Transaction Manager will be responsible for maintaining the Data Broker (a data structure to store data replication info) and the Site Broker (a data structure to store site health information) and implementing the Available Copies algorithm between the 10 site managers
 
-3. __Site Manager__: 10 Data Managers managing operations for every site.
+2. __Transaction Manager__: The Transaction Manager acts as the core processing engine for all transaction-related operations. It maintains complete control over transaction lifecycles, from initiation through to either commitment or abortion. This component implements concurrency control mechanisms through conflict detection and maintains transaction states.
 
-4. __Site__: Each Site Manager manages a single __Site__ will store information about the data items stored in site. This includes *before images* of a data-item before a transaction commits and the *after images* of a data-item after commit. This will allow the site to maintain correct status if a Transaction aborts.
+
+3. __Site Manager__: Working closely with the Transaction Manager, the Site Manager operates as the central coordinator for all distributed operations across multiple database sites. It maintains a comprehensive view of the entire distributed system, tracking the health and availability of each site and managing data distribution. When sites fail or recover, the Site Manager handles the necessary adjustments, including managing pending operations and ensuring data consistency across replicated sites.
+
+
+4. __Site__: At the lowest level, each Site represents an individual database node that handles actual data storage and operations. Sites implement multi-version concurrency control and manage local read and write operations on their stored data. Each site maintains detailed version histories of its data items and provides snapshot isolation capabilities to ensure consistent reads.
 
 ## UML Diagram
 
 The following UML diagram is represents the components and data models used in the application:
 
-![image](./uml_diagram.png)
+![image](./uml_diagram.jpg)
 
 
 ## CLASSES - LOGICAL DESCRIPTION 
@@ -36,157 +39,150 @@ The following UML diagram is represents the components and data models used in t
 ```python
 class Driver:
     """
-    The Driver class is responsible for managing the flow of instructions within the system. 
-    It takes a list of Instruction objects and processes them sequentially. The class provides 
-    methods to parse a file containing instructions and convert them into executable commands.
-
-    Attributes:
-        instructions (List[Instruction]): A list of Instruction objects to be processed.
-
-    Methods:
-        process(): Executes each instruction in the list.
-        parse_file(file: str): Reads and parses a file containing instructions, 
-            converting them into Instruction objects.
-        __init__(): Initializes the Driver class and prepares it to accept and process instructions.
+    The Driver class serves as the main interface for the transaction processing system.
+    It handles file input and delegates instructions to the TransactionManager(begin, read, write, end) and the SiteManager(fail, recover).
     """
-    
-    def __init__(self):
-        """Initializes the Driver class and prepares it to accept and process instructions."""
-        pass
-    
-    def process(self):
-        """Executes the  instruction in the list."""
-        pass
-    
-    def parse_file(self, file: str):
+    def __init__(self, verbose: bool = False):
         """
-        Reads and parses a file containing instructions, converting them into Instruction objects.
-
+        Initialize Driver with optional verbose mode for detailed logging
+        
         Args:
-            file (str): The path to the file containing instructions.
+            verbose (bool): Enable/disable detailed logging
+        """
+        self.site_manager: SiteManager
+        self.transaction_manager: TransactionManager
+        self.verbose: bool = verbose
+    
+    def read_file(self, file):
+        """
+        Read and process instructions from an input file
+        Each line should contain a transaction operation
+        
+        Args:
+            file: Input file containing transaction instructions
+        """
+        pass
+        
+    def process_line(self, line: str, timestamp: int):
+        """
+        Process a single instruction line from the input
+        
+        Args:
+            line (str): The instruction to process
+            timestamp (int): Current line number
         """
         pass
 ```
 
 ```python
-
 class TransactionManager:
     """
-    The TransactionManager class coordinates transactions across multiple sites. 
-    It tracks active transactions, manages conflicts, and interacts with DataBroker and 
-    SiteBroker to handle data access and transaction control.
-
-    Attributes:
-        data_broker (DataBroker): Manages the sites at which every data_id is replicated
-        site_broker (SiteBroker): Maintains the status of each site_id
-        transaction_map (Dict[int, Transaction]): A dictionary mapping transaction IDs to 
-            Transaction objects.
-        conflict_graph (Dict[int, List[int]]): Maintains an adjacency list representing transaction conflicts.
-        site_managers (Dict[int, SiteManager]): A dictionary mapping site IDs to SiteManager instances.
-
-    Methods:
-        __init__(): Initializes the TransactionManager class.
-        begin(t_id: int): Initiates a new transaction with the specified transaction ID.
-        read(t_id: int, data_id: int): Processes a read request for a specific transaction and data item.
-        write(t_id: int, data_id: int, value: int): Processes a write request for a specific transaction 
-            and data item with the given value.
-        dump(): Outputs the current state of all data managed by the system.
-        end(t_id: int): Ends a specified transaction, committing or aborting based on conditions.
-        fail(site_id: int): Handles failure events for a specific site.
-        recover(site_id: int): Recovers a specified site from a failure state.
-        queryState(): Provides the current state of the transactions and sites for debugging purpose.
+    Manages transaction operations, conflict detection, and transaction lifecycle.
+    Coordinates with SiteManager for data operations across multiple sites.
     """
-    
     def __init__(self):
-        """Initializes the TransactionManager class.
-        It will initialize the data_broker with the site_broker.
-        It will also initiate a request to all SiteManager instances to write a default value for data items.
+        """
+        Initialize TransactionManager with required components:
+        - site_manager: Reference to the SiteManager instance
+        - transaction_map: Maps transaction IDs to Transaction objects
+        - conflict_graph: Tracks conflicts between transactions for serializable snapshot isolation
+        """
+        self.site_manager: SiteManager
+        self.transaction_map: Dict[str, Transaction]
+        self.conflict_graph: Dict[str, Dict[EdgeType, Set[str]]]
+
+    def begin(self, t_id: str, timestamp: int):
+        """
+        Start a new transaction
         
-        """
-        pass
-    
-    def begin(self, t_id: int):
-        """
-        Initiates a new transaction with the specified transaction ID.
-
         Args:
-            t_id (int): The transaction ID.
+            t_id (str): Transaction identifier
+            timestamp (int): Start timestamp
         """
         pass
-    
-    def read(self, t_id: int, data_id: int):
-        """
-        Processes a read request for a specific transaction and data item.
-        It checks the data_broker for the list of site_id the data item is replicated at.
-        It will then go to the site_broker to check the status of replica sites and try to initiate a read using a specific SiteManager using Available Copies algorithm.
 
-        Args:
-            t_id (int): The transaction ID.
-            data_id (int): The data item ID.
+    def read(self, t_id: str, data_id: str, timestamp: int, is_pending_read: bool = False) -> int:
         """
-        pass
-    
-    def write(self, t_id: int, data_id: int, value: int):
-        """
-        Processes a write request for a specific transaction and data item with the given value.
-        It checks the data_broker for the list of site_id the data item is replicated at.
-        It will then goto the site_broker to check the status of replica sites and try to initiate writes for all site managers containing the data item using Available Copies algorithm.
+        Execute a read operation for a transaction
         
-
         Args:
-            t_id (int): The transaction ID.
-            data_id (int): The data item ID.
-            value (int): The value to write.
-        """
-        pass
-    
-    def dump(self):
-        """Outputs the current state of all data managed by the system."""
-        pass
-    
-    def end(self, t_id: int):
-        """
-        It will perform the following checks using Serializable Snapshot Algorithm:
+            t_id (str): Transaction identifier
+            data_id (str): Data item to read
+            timestamp (int): Operation timestamp
+            is_pending_read (bool): Whether this is a pending read operation
         
-        a.  Ti will successfully commit only if no other concurrent transaction 
-            Tk has already committed writes to data items where Ti has written
-            versions that it intends to commit.
-            
-        b. It will check the conflict graph for consecutuve RW edges
-
-        Using the above condictions it will decide whether to commit or abort a transaction.
-        On commit, it will initiate the site managers to persist the latest value of the data item written by t_id using data_history.
-        On abortion, the site managers do not get the instruction to persist the value of data item. 
-    
-        Args:
-            t_id (int): The transaction ID.
+        Returns:
+            int: Value read from the data item
         """
         pass
-    
-    def fail(self, site_id: int):
-        """
-        This method handles failure events for a specific site.
-        It will update the SiteStatus.status of site_id to False using the site_broker.
-        It will also add a log for this failure in SiteStatus.site_log.
 
+    def write(self, t_id: str, data_id: str, value: int, timestamp: int, is_pending: bool = False):
+        """
+        Execute a write operation for a transaction
+        
         Args:
-            site_id (int): The site ID.
+            t_id (str): Transaction identifier
+            data_id (str): Data item to write
+            value (int): Value to write
+            timestamp (int): Operation timestamp
+            is_pending (bool): Whether this is a pending write operation
         """
         pass
-    
-    def recover(self, site_id: int):
-        """
-        This method recovers a specified site from a failure state.
-        It will update the SiteStatus.status of site_id to True using the site_broker.
-        It will also add a log for this recovery in SiteStatus.site_log.
 
+    def clears_site_failure_check(self, t_id: str) -> bool:
+        """
+        Check for transaction ABORT based on Available Copies
+        
         Args:
-            site_id (int): The site ID.
+            t_id (str): Transaction identifier
+        
+        Returns:
+            bool: True if transaction can proceed
         """
         pass
-    
-    def queryState(self):
-        """Provides the current state of the transactions and sites."""
+
+    def clears_first_committer_rule_check(self, t_id: str) -> bool:
+        """
+        Check if transaction satisfies the first-committer-wins rule of serializable snapshot isolation
+        
+        Args:
+            t_id (str): Transaction identifier
+        
+        Returns:
+            bool: True if rule is satisfied
+        """
+        pass
+
+    def abort_transaction(self, abort_type: AbortType, t_id: str, data_id: str, site_id: int):
+        """
+        Abort a transaction with specified reason
+        
+        Args:
+            abort_type (AbortType): Reason for abortion
+            t_id (str): Transaction identifier
+            data_id (str): Related data item
+            site_id (int): Related site ID
+        """
+        pass
+
+    def end(self, t_id: str, timestamp: int):
+        """
+        Performs various checks before committing/aborting a transaction.
+        
+        Args:
+            t_id (str): Transaction identifier
+            timestamp (int): End timestamp
+        """
+        pass
+
+    def exec_pending(self, site_id: int, timestamp: int):
+        """
+        Execute pending operations(read, write) after site recovery
+        
+        Args:
+            site_id (int): Site identifier
+            timestamp (int): Current timestamp
+        """
         pass
 ```
 
@@ -194,94 +190,166 @@ class TransactionManager:
 
 class SiteManager:
     """
-    The SiteManager class manages data at an individual site. It oversees data access, 
-    failure recovery, and logging operations. Each SiteManager instance is linked to a Site 
-    object and maintains a history of data values, ensuring local data consistency.
-
-    Attributes:
-        site (Site): A reference to the Site object that the SiteManager manages.
-        data_history (Dict[int, DataLog]): A dictionary that maintains a log of changes 
-            for each data item managed by the site.
-
-    Methods:
-        __init__(): Initializes the SiteManager, setting up the site and data history.
-        read(t_id: int, data_id: int): Reads the value of a specified data item for a transaction.
-        write(t_id: int, data_id: int, value: int): Writes a new value to a specified data item 
-            for a transaction.
-        persist(t_id: int): Save the values written by a committed Transaction to the site.
-        dump(): Outputs the current state of data items at the site.
-        fail(site_id: int): Simulates a failure for the site, affecting data availability.
-        recover(site_id: int): Recovers the site from a failure state.
-        query_state(): Provides the current state and status of the site.
+    Manages multiple sites in the distributed database system.
+    Handles site failures, recovery, and data distribution.
     """
-    
     def __init__(self):
         """
-        Initializes the SiteManager class.
-        It initializes the site associated with the SiteManager (with the initial values of data)
-        It also initializes its data_history field which comprises of a map of data_id and their initial DataLog.
-        The DataLog for a data_item initially consists of a single list element with 
-        value = data_item's value, time = 0 and t_id = 0 (initial status)
+        Initialize SiteManager with:
+        - sites: Dictionary mapping site IDs to Site objects
+        - site_status: Status information for each site
+        - pending_reads/writes: Track pending operations during site failures
+        - data_locations: Track which data items are stored at which sites
         """
-        pass
-    
-    def read(self, t_id: int, data_id: int): bool
-        """
-        Reads the value of a specified data item for a transaction (If available according to the Available Copies Algorithm).
-        In case if the value is not available for reading, it will return a false.
-        If the value is available, it will print the expected output and return true.
+        self.sites: Dict[int, Site]
+        self.site_status: Dict[int, SiteStatus]
+        self.pending_reads: Dict[str, Set[Tuple[int, str, int]]]
+        self.pending_writes: Dict[str, Set[Tuple[int, str, int]]]
+        self.data_locations: Dict[str, List[int]]
 
+    def get_available_sites(self, data_id: str) -> List[int]:
+        """
+        Get list of available sites containing the specified data item
+        
         Args:
-            t_id (int): The transaction ID.
-            data_id (int): The data item ID.
+            data_id (str): Data item identifier
+        
+        Returns:
+            List[int]: List of available site IDs
         """
         pass
-    
-    def write(self, t_id: int, data_id: int, value: int):
-        """
-        Writes a new value to a specified data item for a transaction.
-        The write does not modify the site data directly. Instead, it adds the write information to the dataLog for that particular data item.
 
+    def get_site(self, site_id: int) -> Site:
+        """
+        Get a specific site instance
+        
         Args:
-            t_id (int): The transaction ID.
-            data_id (int): The data item ID.
-            value (int): The value to write.
+            site_id (int): Site identifier
+        
+        Returns:
+            Site: Site instance
         """
         pass
-    
+
+    def commit(self, transaction: Transaction, timestamp: int):
+        """
+        Commit transaction changes to all relevant sites
+        
+        Args:
+            transaction (Transaction): Transaction to commit
+            timestamp (int): Commit timestamp
+        """
+        pass
+
+    def fail(self, site_id: int, timestamp: int):
+        """
+        Handle site failure
+        
+        Args:
+            site_id (int): Failed site identifier
+            timestamp (int): Failure timestamp
+        """
+        pass
+
+    def recover(self, site_id: int, timestamp: int):
+        """
+        Handle site recovery
+        
+        Args:
+            site_id (int): Recovered site identifier
+            timestamp (int): Recovery timestamp
+        """
+        pass
+
     def dump(self):
-        """Outputs the current state of data items at the site."""
-        pass
-    
-    def fail(self, site_id: int):
         """
-        Simulates a failure for the site, affecting data availability.
+        Output the current state of all sites for debugging
+        """
+        pass
+```
 
+```python
+class Site:
+    """
+    Represents a single database site in the distributed system.
+    Manages data storage, versioning, and operations for its local data items.
+    """
+    def __init__(self, site_id: int):
+        """
+        Initialize a database site
+        
         Args:
-            site_id (int): The site ID.
+            site_id (int): Unique identifier for the site
+            
+        Attributes:
+            site_id (int): Site identifier
+            data_store (Dict[str, List[DataLog]]): Current data versions
+            data_history (Dict[str, List[DataLog]]): Historical data versions
+        """
+        self.site_id: int = site_id
+        self.data_store: Dict[str, List[DataLog]] = {}
+        self.data_history: Dict[str, List[DataLog]] = {}
+
+    def initialize_site_data(self):
+        """
+        Initialize the site with its designated data items.
+        Each site is responsible for certain data items based on its site_id.
         """
         pass
-    
-    def recover(self, site_id: int):
-        """
-        Recovers the site from a failure state, restoring data availability.
 
+    def get_value_using_snapshot_isolation(self, data_id: str, timestamp: int) -> int:
+        """
+        Retrieve data value using snapshot isolation
+        
         Args:
-            site_id (int): The site ID.
+            data_id (str): Identifier of the data item
+            timestamp (int): Timestamp for snapshot isolation
+            
+        Returns:
+            int: Value of the data item at the specified timestamp
         """
         pass
 
-    def persist(self, t_id: int):
+    def read(self, data_id: str, timestamp: int) -> int:
         """
-        Persists the write value from the dataLog to the Site.
-        It fetches all the items written by the transactions and saves them to the Site
-
+        Read a data item's value using snapshot isolation by calling self.get_value_using_snapshot_isolation.
+        
         Args:
-            t_id (int): The transaction ID
+            data_id (str): Identifier of the data item
+            timestamp (int): Transaction start time
+            
+        Returns:
+            int: Value of the data item
         """
         pass
-    
-    def query_state(self):
-        """Provides the current state and status of the site."""
+
+    def write(self, t_id: str, data_id: str, value: int, timestamp: int):
+        """
+        Write a new value to a data item
+        
+        Args:
+            t_id (str): Transaction identifier
+            data_id (str): Identifier of the data item
+            value (int): Value to write
+            timestamp (int): Write timestamp
+        """
+        pass
+
+    def persist(self, t_id: str, data_id: str, timestamp: int):
+        """
+        Persist a written value to the data store
+        
+        Args:
+            t_id (str): Transaction identifier
+            data_id (str): Identifier of the data item
+            timestamp (int): Commit timestamp
+        """
+        pass
+
+    def dump(self):
+        """
+        Output the current state of all data items at this site
+        Used for debugging and monitoring
+        """
         pass
 ```
