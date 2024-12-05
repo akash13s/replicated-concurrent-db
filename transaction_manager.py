@@ -65,7 +65,8 @@ class TransactionManager:
             return
 
         # Do not process a waiting transaction
-        if t_id in self.waiting_set:
+        # But make sure it is not an already waiting transaction trying to read from the DB
+        if t_id in self.waiting_set and not is_pending_read:
             print(f"{t_id} is currently waiting - Moving (R,{t_id},{data_id}) to pending reads")
             self.waiting_set[t_id] = self.waiting_set.get(t_id, 0) + 1
             for site_id in previously_running_sites:
@@ -131,7 +132,8 @@ class TransactionManager:
             return
 
         # Do not process a waiting transaction
-        if t_id in self.waiting_set:
+        # But make sure it is not an already waiting transaction trying to write to the DB
+        if t_id in self.waiting_set and not is_pending_write:
             print(f"{t_id} is currently waiting - Moving (W,{t_id},{data_id},{value}) to pending writes")
             self.waiting_set[t_id] = self.waiting_set.get(t_id, 0) + 1
             writable_sites = self.site_manager.get_all_site_ids(data_id)
