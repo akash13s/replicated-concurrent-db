@@ -1,5 +1,5 @@
 """
-Authors:
+Author(s):
     - Rishav Roy
     - Akash Kumar Shrivastva
 """
