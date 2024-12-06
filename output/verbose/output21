@@ -1,0 +1,43 @@
+T1 begins
+T2 begins
+T1 reads 20 from committed x2 at site 1
+x2: 20
+T2 reads 40 from committed x4 at site 1
+x4: 40
+T1 writes 30 to x4 at site 1
+T1 writes 30 to x4 at site 2
+T1 writes 30 to x4 at site 3
+T1 writes 30 to x4 at site 4
+T1 writes 30 to x4 at site 5
+T1 writes 30 to x4 at site 6
+T1 writes 30 to x4 at site 7
+T1 writes 30 to x4 at site 8
+T1 writes 30 to x4 at site 9
+T1 writes 30 to x4 at site 10
+T1 writes 30 to x4 at sites [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+T2 writes 90 to x2 at site 1
+T2 writes 90 to x2 at site 2
+T2 writes 90 to x2 at site 3
+T2 writes 90 to x2 at site 4
+T2 writes 90 to x2 at site 5
+T2 writes 90 to x2 at site 6
+T2 writes 90 to x2 at site 7
+T2 writes 90 to x2 at site 8
+T2 writes 90 to x2 at site 9
+T2 writes 90 to x2 at site 10
+T2 writes 90 to x2 at sites [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+Sites accessed by T1: [(1, 'READ', 3), (1, 'WRITE', 5), (2, 'WRITE', 5), (3, 'WRITE', 5), (4, 'WRITE', 5), (5, 'WRITE', 5), (6, 'WRITE', 5), (7, 'WRITE', 5), (8, 'WRITE', 5), (9, 'WRITE', 5), (10, 'WRITE', 5)]
+All sites accessed by T1 have been up since the first time it accessed them
+Data items that T1 wants to commit: {'x4'}
+T1 passes the 1st committer check
+T1 passes the back-to-back RW edge cycle check
+T1 commits
+Sites accessed by T2: [(1, 'READ', 4), (1, 'WRITE', 6), (2, 'WRITE', 6), (3, 'WRITE', 6), (4, 'WRITE', 6), (5, 'WRITE', 6), (6, 'WRITE', 6), (7, 'WRITE', 6), (8, 'WRITE', 6), (9, 'WRITE', 6), (10, 'WRITE', 6)]
+All sites accessed by T2 have been up since the first time it accessed them
+Data items that T2 wants to commit: {'x2'}
+T2 passes the 1st committer check
+Cycle detected in conflict graph
+{'T1': (<EdgeType.RW: 'RW'>, 'T2'), 'T2': (<EdgeType.RW: 'RW'>, 'T1')}
+Cycle has back to back RW edges
+Aborting T2 due to consecutive read-write cycle in the conflict graph
+T2 aborts

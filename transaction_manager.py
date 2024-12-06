@@ -16,6 +16,9 @@ class TransactionManager:
         # Dict of transaction_id -> Dict of EdgeType and a set of conflicting transaction_ids
         self.conflict_graph: Dict[str, Dict[EdgeType, Set[str]]] = {}
 
+        # Dict of waiting transactions and the corresponding count of instructions to be executed
+        self.waiting_set: Dict[str, int] = dict()
+
     def begin(self, t_id: str, timestamp: int):
         self.transaction_map[t_id] = Transaction(
             id=t_id,
@@ -53,9 +56,19 @@ class TransactionManager:
         available_sites = self.site_manager.get_available_sites(data_id)
         read_ready_sites = [site for site in available_sites if site in previously_running_sites]
 
+        # Move the transaction to the waiting set
         if not read_ready_sites:
             print(f"No sites available - Moving (R,{t_id},{data_id}) to pending reads")
+            self.waiting_set[t_id] = self.waiting_set.get(t_id, 0) + 1
+            for site_id in previously_running_sites:
+                self.site_manager.add_to_pending_reads(site_id, t_id, data_id)
+            return
 
+        # Do not process a waiting transaction
+        # But make sure it is not an already waiting transaction trying to read from the DB
+        if t_id in self.waiting_set and not is_pending_read:
+            print(f"{t_id} is currently waiting - Moving (R,{t_id},{data_id}) to pending reads")
+            self.waiting_set[t_id] = self.waiting_set.get(t_id, 0) + 1
             for site_id in previously_running_sites:
                 self.site_manager.add_to_pending_reads(site_id, t_id, data_id)
             return
@@ -81,6 +94,10 @@ class TransactionManager:
 
         # Remove the read from pending reads
         if success and is_pending_read:
+            self.waiting_set[t_id] = self.waiting_set.get(t_id, 0) - 1
+            if self.waiting_set[t_id] <= 0:
+                self.waiting_set.pop(t_id, None)
+
             for site_id in read_ready_sites:
                 self.site_manager.remove_from_pending_reads(site_id, t_id, data_id)
 
@@ -105,9 +122,20 @@ class TransactionManager:
         # Get available sites for this data item
         available_sites = self.site_manager.get_available_sites(data_id)
 
+        # Move the transaction to the waiting set
         if not available_sites:
             print(f"No sites available - Moving (W,{t_id},{data_id},{value}) to pending writes")
+            self.waiting_set[t_id] = self.waiting_set.get(t_id, 0) + 1
+            writable_sites = self.site_manager.get_all_site_ids(data_id)
+            for site_id in writable_sites:
+                self.site_manager.add_to_pending_writes(site_id, t_id, data_id, value)
+            return
 
+        # Do not process a waiting transaction
+        # But make sure it is not an already waiting transaction trying to write to the DB
+        if t_id in self.waiting_set and not is_pending_write:
+            print(f"{t_id} is currently waiting - Moving (W,{t_id},{data_id},{value}) to pending writes")
+            self.waiting_set[t_id] = self.waiting_set.get(t_id, 0) + 1
             writable_sites = self.site_manager.get_all_site_ids(data_id)
             for site_id in writable_sites:
                 self.site_manager.add_to_pending_writes(site_id, t_id, data_id, value)
@@ -125,7 +153,12 @@ class TransactionManager:
                 if self.verbose:
                     print(f"{t_id} writes {value} to {data_id} at site {site_id}")
 
+        # Remove from pending writes
         if success and is_pending_write:
+            self.waiting_set[t_id] = self.waiting_set.get(t_id, 0) - 1
+            if self.waiting_set[t_id] <= 0:
+                self.waiting_set.pop(t_id, None)
+
             writable_sites = self.site_manager.get_all_site_ids(data_id)
             for site_id in writable_sites:
                 self.site_manager.remove_from_pending_writes(site_id, t_id, data_id, value)

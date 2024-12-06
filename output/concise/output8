@@ -1,0 +1,11 @@
+T1 begins
+T2 begins
+x1: 10
+x2: 20
+T1 writes 33 to x3 at sites [4]
+T1 commits
+T3 begins
+x3: 33
+x3: 30
+T2 commits
+T3 commits

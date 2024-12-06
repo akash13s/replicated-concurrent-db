@@ -1,0 +1,27 @@
+T1 begins
+T2 begins
+T1 reads 20 from committed x2 at site 1
+x2: 20
+T2 reads 20 from committed x2 at site 1
+x2: 20
+T1 is in Read-only mode - no need to check for site failures
+T1 is in Read-only mode - no need to check for first committer rule
+T1 passes the back-to-back RW edge cycle check
+T1 commits
+T2 writes 10 to x2 at site 1
+T2 writes 10 to x2 at site 2
+T2 writes 10 to x2 at site 3
+T2 writes 10 to x2 at site 4
+T2 writes 10 to x2 at site 5
+T2 writes 10 to x2 at site 6
+T2 writes 10 to x2 at site 7
+T2 writes 10 to x2 at site 8
+T2 writes 10 to x2 at site 9
+T2 writes 10 to x2 at site 10
+T2 writes 10 to x2 at sites [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+Sites accessed by T2: [(1, 'READ', 4), (1, 'WRITE', 6), (2, 'WRITE', 6), (3, 'WRITE', 6), (4, 'WRITE', 6), (5, 'WRITE', 6), (6, 'WRITE', 6), (7, 'WRITE', 6), (8, 'WRITE', 6), (9, 'WRITE', 6), (10, 'WRITE', 6)]
+All sites accessed by T2 have been up since the first time it accessed them
+Data items that T2 wants to commit: {'x2'}
+T2 passes the 1st committer check
+T2 passes the back-to-back RW edge cycle check
+T2 commits
