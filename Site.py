@@ -4,12 +4,21 @@ from data_models import DataLog
 
 
 def extract_num(key: str) -> int:
+    """
+    Author(s):
+        - Rishav Roy
+    """
     return int(key[1:])
 
 
 class Site:
 
     def __init__(self, site_id: int):
+        """
+        Author(s):
+            - Rishav Roy
+            - Akash Kumar Shrivastva
+        """
 
         self.site_id = site_id
 
@@ -24,6 +33,11 @@ class Site:
         self.initialize_site_data()
 
     def initialize_site_data(self):
+        """
+        Author(s):
+            - Rishav Roy
+            - Akash Kumar Shrivastva
+        """
         # initialize data items with their corresponding initial values
         # even indexed items are replicated at all sites
         # odd indexed items are replicated only at site (i % 10) + 1
@@ -41,6 +55,10 @@ class Site:
                 self.data_history[data_id] = []
 
     def get_value_using_snapshot_isolation(self, data_id: str, timestamp: int) -> Any:
+        """
+        Author(s):
+            - Akash Kumar Shrivastva
+        """
         committed_writes = reversed(self.data_store[data_id])
         for write in committed_writes:
             if write.timestamp < timestamp:
@@ -49,6 +67,11 @@ class Site:
         return None
 
     def read(self, data_id: str, timestamp: int) -> Optional[int]:
+        """
+        Author(s):
+            - Rishav Roy
+            - Akash Kumar Shrivastva
+        """
         # Data is read from the committed data_store
         if data_id in self.data_store:
             value = self.get_value_using_snapshot_isolation(data_id, timestamp)
@@ -57,6 +80,10 @@ class Site:
         return None
 
     def write(self, t_id: str, data_id: str, value: int, timestamp: int) -> bool:
+        """
+        Author(s):
+            - Akash Kumar Shrivastva
+        """
         if data_id not in self.data_store:
             return False
 
@@ -69,6 +96,11 @@ class Site:
         return True
 
     def persist(self, t_id: str, data_id: str, timestamp: int):
+        """
+        Author(s):
+            - Rishav Roy
+            - Akash Kumar Shrivastva
+        """
         data_history = self.data_history[data_id]
         valid_logs = [log for log in reversed(data_history) if log.transaction_id == t_id]
         if not valid_logs:
@@ -85,6 +117,11 @@ class Site:
         ))
 
     def dump(self) -> str:
+        """
+        Author(s):
+            - Rishav Roy
+            - Akash Kumar Shrivastva
+        """
         status = f"site {self.site_id} - "
         ordered_data = sorted(self.data_store.keys(), key=extract_num)
         data_status = [f"{data_id}: {self.data_store[data_id][-1].value}" for data_id in ordered_data]

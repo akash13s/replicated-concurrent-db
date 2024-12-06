@@ -6,6 +6,11 @@ from site_manager import SiteManager
 
 class TransactionManager:
     def __init__(self, site_manager: SiteManager, verbose: bool):
+        """
+        Author(s):
+            - Rishav Roy
+            - Akash Kumar Shrivastva
+        """
         self.site_manager = site_manager
         self.verbose = verbose
 
@@ -20,6 +25,11 @@ class TransactionManager:
         self.waiting_set: Dict[str, int] = dict()
 
     def begin(self, t_id: str, timestamp: int):
+        """
+        Author(s):
+            - Rishav Roy
+            - Akash Kumar Shrivastva
+        """
         self.transaction_map[t_id] = Transaction(
             id=t_id,
             start_time=timestamp,
@@ -40,6 +50,12 @@ class TransactionManager:
             timestamp: int,
             is_pending_read: bool = False
     ):
+        """
+        Author(s):
+            - Rishav Roy
+            - Akash Kumar Shrivastva
+        """
+
         if self.is_invalid(t_id):
             return
 
@@ -109,6 +125,12 @@ class TransactionManager:
             timestamp: int,
             is_pending_write: bool = False
     ):
+        """
+        Author(s):
+            - Rishav Roy
+            - Akash Kumar Shrivastva
+        """
+
         if self.is_invalid(t_id):
             return
 
@@ -171,6 +193,12 @@ class TransactionManager:
 
     def clears_site_failure_check(self, t_id: str) -> bool:
         """
+        Author(s):
+            - Rishav Roy
+            - Akash Kumar Shrivastva
+        """
+
+        """
         AVAILABLE COPIES: At Commit time: Transaction T tests whether all servers
         that T accessed (read or write) have been up since the first time T accessed them. If not, T aborts.
         (Note: Read-only transactions using multi-version read consistency need not abort in this case.)
@@ -208,6 +236,12 @@ class TransactionManager:
         return True
 
     def clears_first_committer_rule_check(self, t_id: str) -> bool:
+        """
+        Author(s):
+            - Rishav Roy
+            - Akash Kumar Shrivastva
+        """
+
         """
         :param t_id:
         :return: True if transaction can proceed ahead and False otherwise
@@ -255,6 +289,11 @@ class TransactionManager:
         return True
 
     def abort_transaction(self, abort_type: AbortType, t_id: str, data_id: str = None, site_id: int = None):
+        """
+        Author(s):
+            - Rishav Roy
+        """
+
         if self.verbose:
             if AbortType.IMPOSSIBLE_READ == abort_type:
                 print(f"Aborting {t_id} due to impossible read rule on {data_id}")
@@ -270,6 +309,12 @@ class TransactionManager:
         print(f"{t_id} aborts")
 
     def end(self, t_id: str, timestamp: int):
+        """
+        Author(s):
+            - Rishav Roy
+            - Akash Kumar Shrivastva
+        """
+
         if self.is_invalid(t_id):
             return
 
@@ -293,6 +338,10 @@ class TransactionManager:
         print(f"{t_id} commits")
 
     def exec_pending(self, site_id: int, timestamp: int):
+        """
+        Author(s):
+            - Rishav Roy
+        """
         pending_reads = self.site_manager.pending_reads[site_id].copy()
         pending_writes = self.site_manager.pending_writes[site_id].copy()
         for t_id, data_id in pending_reads:
@@ -301,6 +350,10 @@ class TransactionManager:
             self.write(t_id, data_id, value, timestamp, True)
 
     def is_invalid(self, t_id: str) -> bool:
+        """
+        Author(s):
+            - Rishav Roy
+        """
         if t_id not in self.transaction_map:
             print(f"Error: {t_id} does not exist")
             return True
@@ -313,6 +366,11 @@ class TransactionManager:
         return False
 
     def update_conflict_graph(self, t_id: str, timestamp: int) -> bool:
+        """
+        Author(s):
+            - Rishav Roy
+        """
+
         # In every case below:
         # If committing T' causes a serialization graph cycle
         # having two rw edges in a row, then don't commit T' and
@@ -332,6 +390,11 @@ class TransactionManager:
         return success
 
     def add_ww_edge(self, t_id: str) -> bool:
+        """
+        Author(s):
+            - Rishav Roy
+        """
+
         # Upon end(T'), add
         # T --ww--> T' to the serialization graph if T commits before T'
         # begins, and they both write to x
@@ -358,6 +421,10 @@ class TransactionManager:
         return True
 
     def add_wr_edge(self, t_id: str) -> bool:
+        """
+        Author(s):
+            - Rishav Roy
+        """
         # Upon end(T'), add
         # T --wr--> T' to the serialization graph if T writes to x,
         # commits before T' begins, and T' reads from x
@@ -384,6 +451,10 @@ class TransactionManager:
         return True
 
     def add_rw_edge(self, t_id: str, t_end_time: int) -> bool:
+        """
+        Author(s):
+            - Rishav Roy
+        """
         # Upon end(T'), add
         # T --rw--> T' to the serialization graph if T reads from x, T' writes to
         # x, and T begins before end(T')
@@ -410,6 +481,10 @@ class TransactionManager:
         return True
 
     def has_rw_edge_cycle(self) -> bool:
+        """
+        Author(s):
+            - Rishav Roy
+        """
         visited = set()
         current_path = set()
         edge_set = dict()
@@ -460,6 +535,10 @@ class TransactionManager:
         return False
 
     def remove_transaction_from_conflict_graph(self, t_id: str):
+        """
+        Author(s):
+            - Rishav Roy
+        """
         self.conflict_graph[t_id] = dict()
 
         for transaction in self.transaction_map.values():
