@@ -14,6 +14,20 @@ We leverage the following algorithms to achieve the objectives:
 1. Serializable Snapshot Isolation Algorithm for Concurrency Control and validation at commit time.
 2. Available Copies Algorithm for Fault Tolerance and Recover
 
+## Running the project
+
+For a concise output, run:
+
+```python driver.py <input_file>```
+
+For a more verbose output, run:
+
+```python driver.py -v <input_file>```
+
+For running the program over a directory of input files, run:
+
+```./run.sh <input_directory> <output_directory>```
+
 ## Main Components
 
 1. __Driver__: The distributed database system is built around four key components that work together to ensure reliable and consistent data operations. At the highest level, the Driver serves as the system's main controller and entry point, responsible for processing input commands and coordinating the overall flow of operations. It acts as an orchestrator, interpreting user instructions and directing them to appropriate components.

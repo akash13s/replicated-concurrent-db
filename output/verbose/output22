@@ -1,0 +1,72 @@
+T1 begins
+T2 begins
+T1 writes 80 to x2 at site 1
+T1 writes 80 to x2 at site 2
+T1 writes 80 to x2 at site 3
+T1 writes 80 to x2 at site 4
+T1 writes 80 to x2 at site 5
+T1 writes 80 to x2 at site 6
+T1 writes 80 to x2 at site 7
+T1 writes 80 to x2 at site 8
+T1 writes 80 to x2 at site 9
+T1 writes 80 to x2 at site 10
+T1 writes 80 to x2 at sites [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+T1 writes 50 to x4 at site 1
+T1 writes 50 to x4 at site 2
+T1 writes 50 to x4 at site 3
+T1 writes 50 to x4 at site 4
+T1 writes 50 to x4 at site 5
+T1 writes 50 to x4 at site 6
+T1 writes 50 to x4 at site 7
+T1 writes 50 to x4 at site 8
+T1 writes 50 to x4 at site 9
+T1 writes 50 to x4 at site 10
+T1 writes 50 to x4 at sites [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+T2 reads 40 from committed x4 at site 1
+x4: 40
+Sites accessed by T1: [(1, 'WRITE', 3), (2, 'WRITE', 3), (3, 'WRITE', 3), (4, 'WRITE', 3), (5, 'WRITE', 3), (6, 'WRITE', 3), (7, 'WRITE', 3), (8, 'WRITE', 3), (9, 'WRITE', 3), (10, 'WRITE', 3), (1, 'WRITE', 4), (2, 'WRITE', 4), (3, 'WRITE', 4), (4, 'WRITE', 4), (5, 'WRITE', 4), (6, 'WRITE', 4), (7, 'WRITE', 4), (8, 'WRITE', 4), (9, 'WRITE', 4), (10, 'WRITE', 4)]
+All sites accessed by T1 have been up since the first time it accessed them
+Data items that T1 wants to commit: {'x4', 'x2'}
+T1 passes the 1st committer check
+T1 passes the back-to-back RW edge cycle check
+T1 commits
+T2 writes 90 to x6 at site 1
+T2 writes 90 to x6 at site 2
+T2 writes 90 to x6 at site 3
+T2 writes 90 to x6 at site 4
+T2 writes 90 to x6 at site 5
+T2 writes 90 to x6 at site 6
+T2 writes 90 to x6 at site 7
+T2 writes 90 to x6 at site 8
+T2 writes 90 to x6 at site 9
+T2 writes 90 to x6 at site 10
+T2 writes 90 to x6 at sites [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+T3 begins
+T3 reads 60 from committed x6 at site 1
+x6: 60
+T3 writes 70 to x2 at site 1
+T3 writes 70 to x2 at site 2
+T3 writes 70 to x2 at site 3
+T3 writes 70 to x2 at site 4
+T3 writes 70 to x2 at site 5
+T3 writes 70 to x2 at site 6
+T3 writes 70 to x2 at site 7
+T3 writes 70 to x2 at site 8
+T3 writes 70 to x2 at site 9
+T3 writes 70 to x2 at site 10
+T3 writes 70 to x2 at sites [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+Sites accessed by T2: [(1, 'READ', 5), (1, 'WRITE', 7), (2, 'WRITE', 7), (3, 'WRITE', 7), (4, 'WRITE', 7), (5, 'WRITE', 7), (6, 'WRITE', 7), (7, 'WRITE', 7), (8, 'WRITE', 7), (9, 'WRITE', 7), (10, 'WRITE', 7)]
+All sites accessed by T2 have been up since the first time it accessed them
+Data items that T2 wants to commit: {'x6'}
+T2 passes the 1st committer check
+T2 passes the back-to-back RW edge cycle check
+T2 commits
+Sites accessed by T3: [(1, 'READ', 9), (1, 'WRITE', 10), (2, 'WRITE', 10), (3, 'WRITE', 10), (4, 'WRITE', 10), (5, 'WRITE', 10), (6, 'WRITE', 10), (7, 'WRITE', 10), (8, 'WRITE', 10), (9, 'WRITE', 10), (10, 'WRITE', 10)]
+All sites accessed by T3 have been up since the first time it accessed them
+Data items that T3 wants to commit: {'x2'}
+T3 passes the 1st committer check
+Cycle detected in conflict graph
+{'T1': (<EdgeType.WW: 'WW'>, 'T3'), 'T3': (<EdgeType.RW: 'RW'>, 'T2'), 'T2': (<EdgeType.RW: 'RW'>, 'T1')}
+Cycle has back to back RW edges
+Aborting T3 due to consecutive read-write cycle in the conflict graph
+T3 aborts

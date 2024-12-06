@@ -1,0 +1,52 @@
+T1 begins
+T2 begins
+T3 begins
+T3 writes 10 to x2 at site 1
+T3 writes 10 to x2 at site 2
+T3 writes 10 to x2 at site 3
+T3 writes 10 to x2 at site 4
+T3 writes 10 to x2 at site 5
+T3 writes 10 to x2 at site 6
+T3 writes 10 to x2 at site 7
+T3 writes 10 to x2 at site 8
+T3 writes 10 to x2 at site 9
+T3 writes 10 to x2 at site 10
+T3 writes 10 to x2 at sites [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+T2 writes 20 to x2 at site 1
+T2 writes 20 to x2 at site 2
+T2 writes 20 to x2 at site 3
+T2 writes 20 to x2 at site 4
+T2 writes 20 to x2 at site 5
+T2 writes 20 to x2 at site 6
+T2 writes 20 to x2 at site 7
+T2 writes 20 to x2 at site 8
+T2 writes 20 to x2 at site 9
+T2 writes 20 to x2 at site 10
+T2 writes 20 to x2 at sites [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+T1 writes 30 to x2 at site 1
+T1 writes 30 to x2 at site 2
+T1 writes 30 to x2 at site 3
+T1 writes 30 to x2 at site 4
+T1 writes 30 to x2 at site 5
+T1 writes 30 to x2 at site 6
+T1 writes 30 to x2 at site 7
+T1 writes 30 to x2 at site 8
+T1 writes 30 to x2 at site 9
+T1 writes 30 to x2 at site 10
+T1 writes 30 to x2 at sites [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+Sites accessed by T3: [(1, 'WRITE', 4), (2, 'WRITE', 4), (3, 'WRITE', 4), (4, 'WRITE', 4), (5, 'WRITE', 4), (6, 'WRITE', 4), (7, 'WRITE', 4), (8, 'WRITE', 4), (9, 'WRITE', 4), (10, 'WRITE', 4)]
+All sites accessed by T3 have been up since the first time it accessed them
+Data items that T3 wants to commit: {'x2'}
+T3 passes the 1st committer check
+T3 passes the back-to-back RW edge cycle check
+T3 commits
+Sites accessed by T2: [(1, 'WRITE', 5), (2, 'WRITE', 5), (3, 'WRITE', 5), (4, 'WRITE', 5), (5, 'WRITE', 5), (6, 'WRITE', 5), (7, 'WRITE', 5), (8, 'WRITE', 5), (9, 'WRITE', 5), (10, 'WRITE', 5)]
+All sites accessed by T2 have been up since the first time it accessed them
+Data items that T2 wants to commit: {'x2'}
+Aborting T2 due to first committer rule
+T2 aborts
+Sites accessed by T1: [(1, 'WRITE', 6), (2, 'WRITE', 6), (3, 'WRITE', 6), (4, 'WRITE', 6), (5, 'WRITE', 6), (6, 'WRITE', 6), (7, 'WRITE', 6), (8, 'WRITE', 6), (9, 'WRITE', 6), (10, 'WRITE', 6)]
+All sites accessed by T1 have been up since the first time it accessed them
+Data items that T1 wants to commit: {'x2'}
+Aborting T1 due to first committer rule
+T1 aborts

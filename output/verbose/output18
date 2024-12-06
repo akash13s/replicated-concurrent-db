@@ -1,0 +1,76 @@
+T1 begins
+T2 begins
+T3 begins
+T4 begins
+T5 begins
+T4 reads 40 from committed x4 at site 1
+x4: 40
+T5 reads 50 from committed x5 at site 6
+x5: 50
+T1 reads 10 from committed x1 at site 2
+x1: 10
+T1 writes 10 to x2 at site 1
+T1 writes 10 to x2 at site 2
+T1 writes 10 to x2 at site 3
+T1 writes 10 to x2 at site 4
+T1 writes 10 to x2 at site 5
+T1 writes 10 to x2 at site 6
+T1 writes 10 to x2 at site 7
+T1 writes 10 to x2 at site 8
+T1 writes 10 to x2 at site 9
+T1 writes 10 to x2 at site 10
+T1 writes 10 to x2 at sites [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+T2 reads 20 from committed x2 at site 1
+x2: 20
+T2 writes 20 to x3 at site 4
+T2 writes 20 to x3 at sites [4]
+T3 reads 30 from committed x3 at site 4
+x3: 30
+T3 writes 30 to x4 at site 1
+T3 writes 30 to x4 at site 2
+T3 writes 30 to x4 at site 3
+T3 writes 30 to x4 at site 4
+T3 writes 30 to x4 at site 5
+T3 writes 30 to x4 at site 6
+T3 writes 30 to x4 at site 7
+T3 writes 30 to x4 at site 8
+T3 writes 30 to x4 at site 9
+T3 writes 30 to x4 at site 10
+T3 writes 30 to x4 at sites [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+T4 writes 40 to x5 at site 6
+T4 writes 40 to x5 at sites [6]
+T5 writes 50 to x1 at site 2
+T5 writes 50 to x1 at sites [2]
+Sites accessed by T4: [(1, 'READ', 6), (6, 'WRITE', 14)]
+All sites accessed by T4 have been up since the first time it accessed them
+Data items that T4 wants to commit: {'x5'}
+T4 passes the 1st committer check
+T4 passes the back-to-back RW edge cycle check
+T4 commits
+Sites accessed by T3: [(4, 'READ', 12), (1, 'WRITE', 13), (2, 'WRITE', 13), (3, 'WRITE', 13), (4, 'WRITE', 13), (5, 'WRITE', 13), (6, 'WRITE', 13), (7, 'WRITE', 13), (8, 'WRITE', 13), (9, 'WRITE', 13), (10, 'WRITE', 13)]
+All sites accessed by T3 have been up since the first time it accessed them
+Data items that T3 wants to commit: {'x4'}
+T3 passes the 1st committer check
+T3 passes the back-to-back RW edge cycle check
+T3 commits
+Sites accessed by T2: [(1, 'READ', 10), (4, 'WRITE', 11)]
+All sites accessed by T2 have been up since the first time it accessed them
+Data items that T2 wants to commit: {'x3'}
+T2 passes the 1st committer check
+T2 passes the back-to-back RW edge cycle check
+T2 commits
+Sites accessed by T1: [(2, 'READ', 8), (1, 'WRITE', 9), (2, 'WRITE', 9), (3, 'WRITE', 9), (4, 'WRITE', 9), (5, 'WRITE', 9), (6, 'WRITE', 9), (7, 'WRITE', 9), (8, 'WRITE', 9), (9, 'WRITE', 9), (10, 'WRITE', 9)]
+All sites accessed by T1 have been up since the first time it accessed them
+Data items that T1 wants to commit: {'x2'}
+T1 passes the 1st committer check
+T1 passes the back-to-back RW edge cycle check
+T1 commits
+Sites accessed by T5: [(6, 'READ', 7), (2, 'WRITE', 15)]
+All sites accessed by T5 have been up since the first time it accessed them
+Data items that T5 wants to commit: {'x1'}
+T5 passes the 1st committer check
+Cycle detected in conflict graph
+{'T1': (<EdgeType.RW: 'RW'>, 'T5'), 'T5': (<EdgeType.RW: 'RW'>, 'T4'), 'T4': (<EdgeType.RW: 'RW'>, 'T3'), 'T3': (<EdgeType.RW: 'RW'>, 'T2'), 'T2': (<EdgeType.RW: 'RW'>, 'T1')}
+Cycle has back to back RW edges
+Aborting T5 due to consecutive read-write cycle in the conflict graph
+T5 aborts
